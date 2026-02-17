@@ -450,7 +450,69 @@ elif page == "Settings":
 
 # --- PAGE: SCAN SHIPMENT ---
 elif page == "Scan Shipment":
-    st.title("📷 Scan Shipment")
-    img_file = st.file_uploader("Upload Image", type=["jpg", "png"])
-    if img_file and st.button("Analyze"):
-        st.info("AI Analysis would run here (Update to handle 'category' in JSON response logic needed for full automation).")
+    st.title("📷 Scan New Shipment")
+    st.write("Upload a photo of the balloon bags. The AI will identify them and update your inventory.")
+
+    img_file = st.file_uploader("Upload Image", type=["jpg", "jpeg", "png"])
+    
+    if img_file:
+        image = Image.open(img_file)
+        st.image(image, caption="Uploaded Image", width=500)
+
+        if st.button("Analyze Image"):
+            detected_items = analyze_image_with_gemini(image)
+
+            if detected_items:
+                st.success(f"AI Found {len(detected_items)} item(s)!")
+                st.subheader("Processing Results:")
+                
+                updated_count = 0
+                new_item_warnings = []
+
+                for item in detected_items:
+                    category = item.get('category')
+                    
+                    if category == 'latex':
+                        brand = item.get('brand', 'Unknown')
+                        color = item.get('color', 'Unknown')
+                        size = item.get('size')
+                        
+                        if size not in LATEX_SIZES:
+                            st.warning(f"Skipping '{color}' - AI returned unknown size '{size}'.")
+                            continue
+
+                        # Case-insensitive matching
+                        mask = (df['category'] == 'latex') & (df['brand'].str.lower() == brand.lower()) & (df['color'].str.lower() == color.lower())
+                        if mask.any():
+                            idx = df[mask].index[0]
+                            df.at[idx, size] += 1
+                            st.write(f"✅ Added 1 bag to **{df.at[idx, 'brand']} {df.at[idx, 'color']} ({size})**.")
+                            updated_count += 1
+                        else:
+                            new_item_warnings.append(f"Latex: **{brand} {color}**. Please add it via 'Add Manually'.")
+
+                    elif category == 'foil':
+                        brand = item.get('brand', 'Unknown')
+                        color = item.get('color', 'Unknown')
+                        design = item.get('design', 'Unknown')
+                        size_field = "large" if item.get('size') == "large" else "small"
+                        
+                        mask = (df['category'] == 'foil') & (df['brand'].str.lower() == brand.lower()) & (df['color'].str.lower() == color.lower()) & (df['design'].str.lower() == design.lower())
+                        if mask.any():
+                            idx = df[mask].index[0]
+                            df.at[idx, size_field] += 1
+                            st.write(f"✅ Added 1 to **{df.at[idx, 'color']} {df.at[idx, 'design']} ({size_field})**.")
+                            updated_count += 1
+                        else:
+                            new_item_warnings.append(f"Foil: **{brand} {color} {design}**. Please add it via 'Add Manually'.")
+                
+                if updated_count > 0:
+                    save_data(df)
+                    st.toast(f"Successfully updated {updated_count} inventory item(s)!")
+                
+                if new_item_warnings:
+                    st.warning("Some items are new and could not be added automatically:")
+                    for warning in set(new_item_warnings):
+                        st.markdown(f"- {warning}")
+            else:
+                st.warning("The AI could not detect any balloon bags in the image. Please try another photo.")
