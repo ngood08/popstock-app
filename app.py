@@ -139,6 +139,43 @@ def analyze_image_with_gemini(image):
 
 st.set_page_config(page_title="PopStock", page_icon="🎈", layout="wide")
 
+# --- AUTHENTICATION ---
+def check_password():
+    """Returns `True` if the user had the correct password."""
+
+    def password_entered():
+        """Checks whether a password entered by the user is correct."""
+        if "APP_PASSWORD" in st.secrets:
+            if st.session_state["password"] == st.secrets["APP_PASSWORD"]:
+                st.session_state["password_correct"] = True
+                del st.session_state["password"]  # don't store password
+            else:
+                st.session_state["password_correct"] = False
+        else:
+            # If no password is set in secrets, allow access (or you could choose to block)
+            st.warning("No 'APP_PASSWORD' found in Streamlit secrets. App is open to public.")
+            st.session_state["password_correct"] = True
+
+    if "password_correct" not in st.session_state:
+        # First run, show input for password.
+        st.text_input(
+            "Please enter the app password to access PopStock", type="password", on_change=password_entered, key="password"
+        )
+        return False
+    elif not st.session_state["password_correct"]:
+        # Password not correct, show input + error.
+        st.text_input(
+            "Please enter the app password to access PopStock", type="password", on_change=password_entered, key="password"
+        )
+        st.error("😕 Password incorrect")
+        return False
+    else:
+        # Password correct.
+        return True
+
+if not check_password():
+    st.stop()  # Do not continue if check_password is not True.
+
 # Sidebar
 st.sidebar.title("🎈 PopStock")
 page = st.sidebar.radio("Go to", ["Inventory", "Scan Shipment", "Add Manually", "Analytics", "Settings"])
