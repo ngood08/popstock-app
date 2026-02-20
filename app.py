@@ -191,32 +191,6 @@ df = load_data()
 if page == "Inventory":
     st.title("Current Inventory")
     
-    if view_mode == "📱 Mobile":
-        st.markdown("""
-        <style>
-        /* Force Streamlit columns to stay horizontal unconditionally for mobile view */
-        div[data-testid="stHorizontalBlock"] {
-            flex-direction: row !important;
-            flex-wrap: nowrap !important;
-            align-items: center !important;
-        }
-        div[data-testid="column"] {
-            width: auto !important;
-            flex: 1 1 0% !important;
-            min-width: 0 !important;
-            padding: 0 5px !important;
-        }
-        div[data-testid="stVerticalBlockBorderWrapper"] {
-            padding: 0.5rem !important;
-        }
-        /* Center text in number inputs */
-        input[type="number"] {
-            text-align: center !important;
-            font-size: 1.1em !important;
-        }
-        </style>
-        """, unsafe_allow_html=True)
-    
     # TABS for Latex vs Foil
     tab_latex, tab_foil = st.tabs(["🔵 Latex Balloons", "✨ Foil Balloons"])
     
@@ -289,11 +263,20 @@ if page == "Inventory":
                     st.divider()
             else: # Mobile
                 with st.container(border=True):
-                    c_img, c_title, c_edit = st.columns([1, 4, 1])
-                    with c_img:
-                        st.markdown(f'<div style="background-color:{row["hex"]}; width:40px; height:40px; border-radius:50%; border: 2px solid #ddd; margin-top:10px;"></div>', unsafe_allow_html=True)
+                    c_title, c_edit = st.columns([5, 1])
                     with c_title:
-                        st.markdown(f"**{row['brand']}**<br/>{row['color']}", unsafe_allow_html=True)
+                        st.markdown(
+                            f"""
+                            <div style="display: flex; align-items: center; gap: 10px; margin-top: 5px;">
+                                <div style="background-color:{row['hex']}; width:35px; height:35px; border-radius:50%; border: 1px solid #ddd; flex-shrink: 0;"></div>
+                                <div style="line-height: 1.2;">
+                                    <strong>{row['brand']}</strong><br/>
+                                    <span style="font-size: 0.9em;">{row['color']}</span>
+                                </div>
+                            </div>
+                            """, 
+                            unsafe_allow_html=True
+                        )
                     
                     with c_edit:
                         with st.popover("⚙️"):
@@ -316,39 +299,34 @@ if page == "Inventory":
                                     save_data(df)
                                     st.rerun()
 
-                    st.markdown("<hr style='margin: 5px 0; border: none; border-top: 1px solid #eee;'>", unsafe_allow_html=True)
+                    st.markdown("<hr style='margin: 10px 0; border: none; border-top: 1px solid #eee;'>", unsafe_allow_html=True)
 
-                    # Sizes list mobile
-                    for size in LATEX_SIZES:
-                        qty = row[size]
-                        thresholds = latex_thresholds[size]
-                        
-                        if qty <= thresholds["low"]:
-                            indicator = "🔴"
-                        elif qty <= thresholds["medium"]:
-                            indicator = "🟠"
-                        else:
-                            indicator = "🟢"
+                    # Sizes grid mobile
+                    for i in range(0, len(LATEX_SIZES), 2):
+                        chunk = LATEX_SIZES[i:i+2]
+                        cols = st.columns(len(chunk))
+                        for j, size in enumerate(chunk):
+                            qty = row[size]
+                            thresholds = latex_thresholds[size]
                             
-                        c_label, c_input = st.columns([1, 1])
-                        c_label.markdown(f"<div style='padding-top:10px;'>{indicator} <b>{size}</b></div>", unsafe_allow_html=True)
-                        with c_input:
-                            new_qty = st.number_input(
-                                f"Qty {size}",
-                                min_value=0,
-                                value=int(qty),
-                                step=1,
-                                key=f"m_qty_l_{row['id']}_{size}",
-                                label_visibility="collapsed"
-                            )
-                            if new_qty != qty:
-                                if new_qty < qty:
-                                    current_month_str = datetime.now().strftime("%Y-%m")
-                                    usage_dict = df.at[index, 'monthly_usage']
-                                    usage_dict[current_month_str] = usage_dict.get(current_month_str, 0) + (qty - new_qty)
-                                df.at[index, size] = new_qty
-                                save_data(df)
-                                st.rerun()
+                            indicator = "🔴" if qty <= thresholds["low"] else "🟠" if qty <= thresholds["medium"] else "🟢"
+                                
+                            with cols[j]:
+                                new_qty = st.number_input(
+                                    f"{indicator} {size}",
+                                    min_value=0,
+                                    value=int(qty),
+                                    step=1,
+                                    key=f"m_qty_l_{row['id']}_{size}"
+                                )
+                                if new_qty != qty:
+                                    if new_qty < qty:
+                                        current_month_str = datetime.now().strftime("%Y-%m")
+                                        usage_dict = df.at[index, 'monthly_usage']
+                                        usage_dict[current_month_str] = usage_dict.get(current_month_str, 0) + (qty - new_qty)
+                                    df.at[index, size] = new_qty
+                                    save_data(df)
+                                    st.rerun()
 
     # --- TAB 2: FOIL ---
     with tab_foil:
@@ -434,11 +412,20 @@ if page == "Inventory":
                     st.divider()
             else: # Mobile
                 with st.container(border=True):
-                    c_img, c_title, c_edit = st.columns([1, 4, 1])
-                    with c_img:
-                        st.markdown(f'<div style="background-color:{row["hex"]}; width:40px; height:40px; border-radius:10%; border: 2px solid #ddd; margin-top:10px;"></div>', unsafe_allow_html=True)
+                    c_title, c_edit = st.columns([5, 1])
                     with c_title:
-                        st.markdown(f"**{row['color']} - {row['design']}**<br/>({row['foil_type']})", unsafe_allow_html=True)
+                        st.markdown(
+                            f"""
+                            <div style="display: flex; align-items: center; gap: 10px; margin-top: 5px;">
+                                <div style="background-color:{row['hex']}; width:35px; height:35px; border-radius:10%; border: 1px solid #ddd; flex-shrink: 0;"></div>
+                                <div style="line-height: 1.2;">
+                                    <strong>{row['color']} - {row['design']}</strong><br/>
+                                    <span style="font-size: 0.9em;">({row['foil_type']})</span>
+                                </div>
+                            </div>
+                            """, 
+                            unsafe_allow_html=True
+                        )
                     
                     with c_edit:
                         with st.popover("⚙️"):
@@ -467,24 +454,22 @@ if page == "Inventory":
                                     save_data(df)
                                     st.rerun()
                     
-                    st.markdown("<hr style='margin: 5px 0; border: none; border-top: 1px solid #eee;'>", unsafe_allow_html=True)
+                    st.markdown("<hr style='margin: 10px 0; border: none; border-top: 1px solid #eee;'>", unsafe_allow_html=True)
                     
-                    # FOIL SIZES list
+                    # FOIL SIZES grid mobile
                     foil_sizes = [("small", "Small (16in)"), ("large", "Large (40in)")]
-                    for field, label in foil_sizes:
+                    cols = st.columns(2)
+                    for j, (field, label) in enumerate(foil_sizes):
                         qty = row[field]
                         indicator = "🔴" if qty == 0 else "🟢"
                         
-                        c_label, c_input = st.columns([1, 1])
-                        c_label.markdown(f"<div style='padding-top:10px;'>{indicator} <b>{label}</b></div>", unsafe_allow_html=True)
-                        with c_input:
+                        with cols[j]:
                             new_qty = st.number_input(
-                                f"Qty {field}",
+                                f"{indicator} {label}",
                                 min_value=0,
                                 value=int(qty),
                                 step=1,
-                                key=f"m_qty_f_{row['id']}_{field}",
-                                label_visibility="collapsed"
+                                key=f"m_qty_f_{row['id']}_{field}"
                             )
                             if new_qty != qty:
                                 if new_qty < qty:
