@@ -191,6 +191,32 @@ df = load_data()
 if page == "Inventory":
     st.title("Current Inventory")
     
+    if view_mode == "📱 Mobile":
+        st.markdown("""
+        <style>
+        /* Force Streamlit columns to stay horizontal unconditionally for mobile view */
+        div[data-testid="stHorizontalBlock"] {
+            flex-direction: row !important;
+            flex-wrap: nowrap !important;
+            align-items: center !important;
+        }
+        div[data-testid="column"] {
+            width: auto !important;
+            flex: 1 1 0% !important;
+            min-width: 0 !important;
+            padding: 0 5px !important;
+        }
+        div[data-testid="stVerticalBlockBorderWrapper"] {
+            padding: 0.5rem !important;
+        }
+        /* Center text in number inputs */
+        input[type="number"] {
+            text-align: center !important;
+            font-size: 1.1em !important;
+        }
+        </style>
+        """, unsafe_allow_html=True)
+    
     # TABS for Latex vs Foil
     tab_latex, tab_foil = st.tabs(["🔵 Latex Balloons", "✨ Foil Balloons"])
     
@@ -290,33 +316,39 @@ if page == "Inventory":
                                     save_data(df)
                                     st.rerun()
 
+                    st.markdown("<hr style='margin: 5px 0; border: none; border-top: 1px solid #eee;'>", unsafe_allow_html=True)
+
                     # Sizes list mobile
                     for size in LATEX_SIZES:
                         qty = row[size]
                         thresholds = latex_thresholds[size]
                         
                         if qty <= thresholds["low"]:
-                            color_alert = "red"
+                            indicator = "🔴"
                         elif qty <= thresholds["medium"]:
-                            color_alert = "orange"
+                            indicator = "🟠"
                         else:
-                            color_alert = "green"
+                            indicator = "🟢"
                             
-                        c_label, c_sub, c_qty, c_add = st.columns([2, 1, 1.5, 1])
-                        c_label.markdown(f"**{size}**")
-                        if c_sub.button("➖", key=f"m_l_sub_{row['id']}_{size}"):
-                            if qty > 0:
-                                df.at[index, size] = qty - 1
-                                current_month_str = datetime.now().strftime("%Y-%m")
-                                usage_dict = df.at[index, 'monthly_usage']
-                                usage_dict[current_month_str] = usage_dict.get(current_month_str, 0) + 1
+                        c_label, c_input = st.columns([1, 1])
+                        c_label.markdown(f"<div style='padding-top:10px;'>{indicator} <b>{size}</b></div>", unsafe_allow_html=True)
+                        with c_input:
+                            new_qty = st.number_input(
+                                f"Qty {size}",
+                                min_value=0,
+                                value=int(qty),
+                                step=1,
+                                key=f"m_qty_l_{row['id']}_{size}",
+                                label_visibility="collapsed"
+                            )
+                            if new_qty != qty:
+                                if new_qty < qty:
+                                    current_month_str = datetime.now().strftime("%Y-%m")
+                                    usage_dict = df.at[index, 'monthly_usage']
+                                    usage_dict[current_month_str] = usage_dict.get(current_month_str, 0) + (qty - new_qty)
+                                df.at[index, size] = new_qty
                                 save_data(df)
                                 st.rerun()
-                        c_qty.markdown(f"<div style='text-align: center; margin-top: 5px;'><span style='color: {color_alert}; font-weight: bold;'>{qty}</span></div>", unsafe_allow_html=True)
-                        if c_add.button("➕", key=f"m_l_add_{row['id']}_{size}"):
-                            df.at[index, size] = qty + 1
-                            save_data(df)
-                            st.rerun()
 
     # --- TAB 2: FOIL ---
     with tab_foil:
@@ -435,27 +467,33 @@ if page == "Inventory":
                                     save_data(df)
                                     st.rerun()
                     
+                    st.markdown("<hr style='margin: 5px 0; border: none; border-top: 1px solid #eee;'>", unsafe_allow_html=True)
+                    
                     # FOIL SIZES list
                     foil_sizes = [("small", "Small (16in)"), ("large", "Large (40in)")]
                     for field, label in foil_sizes:
                         qty = row[field]
-                        color_alert = "red" if qty == 0 else "green"
+                        indicator = "🔴" if qty == 0 else "🟢"
                         
-                        c_label, c_sub, c_qty, c_add = st.columns([2, 1, 1.5, 1])
-                        c_label.markdown(f"**{label}**")
-                        if c_sub.button("➖", key=f"m_f_sub_{row['id']}_{field}"):
-                            if qty > 0:
-                                df.at[index, field] = qty - 1
-                                current_month_str = datetime.now().strftime("%Y-%m")
-                                usage_dict = df.at[index, 'monthly_usage']
-                                usage_dict[current_month_str] = usage_dict.get(current_month_str, 0) + 1
+                        c_label, c_input = st.columns([1, 1])
+                        c_label.markdown(f"<div style='padding-top:10px;'>{indicator} <b>{label}</b></div>", unsafe_allow_html=True)
+                        with c_input:
+                            new_qty = st.number_input(
+                                f"Qty {field}",
+                                min_value=0,
+                                value=int(qty),
+                                step=1,
+                                key=f"m_qty_f_{row['id']}_{field}",
+                                label_visibility="collapsed"
+                            )
+                            if new_qty != qty:
+                                if new_qty < qty:
+                                    current_month_str = datetime.now().strftime("%Y-%m")
+                                    usage_dict = df.at[index, 'monthly_usage']
+                                    usage_dict[current_month_str] = usage_dict.get(current_month_str, 0) + (qty - new_qty)
+                                df.at[index, field] = new_qty
                                 save_data(df)
                                 st.rerun()
-                        c_qty.markdown(f"<div style='text-align: center; margin-top: 5px;'><span style='color: {color_alert}; font-weight: bold;'>{qty}</span></div>", unsafe_allow_html=True)
-                        if c_add.button("➕", key=f"m_f_add_{row['id']}_{field}"):
-                            df.at[index, field] = qty + 1
-                            save_data(df)
-                            st.rerun()
 
 # --- PAGE: ADD MANUALLY ---
 elif page == "Add Manually":
