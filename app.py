@@ -194,19 +194,24 @@ if page == "Inventory":
     if view_mode == "📱 Mobile":
         st.markdown("""
         <style>
-        /* Force ONLY the header columns to stay horizontal unconditionally for mobile view */
+        /* Safely force header columns to stay horizontal without overflowing */
         div[data-testid="stHorizontalBlock"]:has(.header-row-marker) {
             flex-direction: row !important;
             flex-wrap: nowrap !important;
-            align-items: flex-start !important;
+            align-items: center !important;
+            gap: 0 !important;
+            width: 100% !important;
         }
         div[data-testid="stHorizontalBlock"]:has(.header-row-marker) > div[data-testid="column"] {
             width: auto !important;
-            flex: none !important;
+            flex: 0 0 auto !important;
             min-width: 0 !important;
+            padding: 0 !important;
+            margin: 0 !important;
         }
-        div[data-testid="stHorizontalBlock"]:has(.header-row-marker) > div:first-child {
-            flex: 1 1 auto !important;
+        div[data-testid="stHorizontalBlock"]:has(.header-row-marker) > div[data-testid="column"]:first-child {
+            flex: 1 1 0% !important;
+            padding-right: 10px !important;
         }
         div[data-testid="stHorizontalBlock"]:has(.header-row-marker) .stPopover button {
             padding: 4px 10px !important;
