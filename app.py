@@ -312,7 +312,7 @@ if page == "Inventory":
                                 usage_dict[current_month_str] = usage_dict.get(current_month_str, 0) + 1
                                 save_data(df)
                                 st.rerun()
-                        c_qty.markdown(f"<div style='text-align: center; margin-top: 5px;'>:{color_alert}[**{qty}**]</div>", unsafe_allow_html=True)
+                        c_qty.markdown(f"<div style='text-align: center; margin-top: 5px;'><span style='color: {color_alert}; font-weight: bold;'>{qty}</span></div>", unsafe_allow_html=True)
                         if c_add.button("➕", key=f"m_l_add_{row['id']}_{size}"):
                             df.at[index, size] = qty + 1
                             save_data(df)
@@ -451,7 +451,7 @@ if page == "Inventory":
                                 usage_dict[current_month_str] = usage_dict.get(current_month_str, 0) + 1
                                 save_data(df)
                                 st.rerun()
-                        c_qty.markdown(f"<div style='text-align: center; margin-top: 5px;'>:{color_alert}[**{qty}**]</div>", unsafe_allow_html=True)
+                        c_qty.markdown(f"<div style='text-align: center; margin-top: 5px;'><span style='color: {color_alert}; font-weight: bold;'>{qty}</span></div>", unsafe_allow_html=True)
                         if c_add.button("➕", key=f"m_f_add_{row['id']}_{field}"):
                             df.at[index, field] = qty + 1
                             save_data(df)
