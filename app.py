@@ -194,30 +194,26 @@ if page == "Inventory":
     if view_mode == "📱 Mobile":
         st.markdown("""
         <style>
-        /* Safely force header columns to stay horizontal without overflowing */
-        div[data-testid="stHorizontalBlock"]:has(.header-row-marker) {
-            flex-direction: row !important;
-            flex-wrap: nowrap !important;
-            align-items: center !important;
-            gap: 0 !important;
-            width: 100% !important;
+        /* Card container relative for absolute positioning */
+        div[data-testid="stVerticalBlockBorderWrapper"]:has(.header-row-marker) {
+            position: relative;
         }
-        div[data-testid="stHorizontalBlock"]:has(.header-row-marker) > div[data-testid="column"] {
+        /* Float the popover to top right */
+        div[data-testid="stVerticalBlockBorderWrapper"]:has(.header-row-marker) div[data-testid="stPopover"] {
+            position: absolute !important;
+            top: 15px !important;
+            right: 15px !important;
             width: auto !important;
-            flex: 0 0 auto !important;
-            min-width: 0 !important;
+            z-index: 10;
+        }
+        /* Make the popover button a compact circle */
+        div[data-testid="stVerticalBlockBorderWrapper"]:has(.header-row-marker) div[data-testid="stPopover"] button {
             padding: 0 !important;
-            margin: 0 !important;
-        }
-        div[data-testid="stHorizontalBlock"]:has(.header-row-marker) > div[data-testid="column"]:first-child {
-            flex: 1 1 0% !important;
-            padding-right: 10px !important;
-        }
-        div[data-testid="stHorizontalBlock"]:has(.header-row-marker) .stPopover button {
-            padding: 4px 10px !important;
+            width: 32px !important;
+            height: 32px !important;
             min-height: 0 !important;
-            height: auto !important;
-            border-radius: 20px !important;
+            border-radius: 50% !important;
+            line-height: 1 !important;
         }
         /* Make number inputs more compact */
         input[type="number"] {
