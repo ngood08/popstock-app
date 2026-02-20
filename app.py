@@ -195,11 +195,11 @@ if page == "Inventory":
         st.markdown("""
         <style>
         /* Card container relative for absolute positioning */
-        div[data-testid="stVerticalBlockBorderWrapper"]:has(.header-row-marker) {
+        div[data-testid="stVerticalBlock"]:has(.header-row-marker) {
             position: relative;
         }
-        /* Float the popover to top right */
-        div[data-testid="stVerticalBlockBorderWrapper"]:has(.header-row-marker) div[data-testid="stPopover"] {
+        /* Float the entire popover wrapper to top right to remove it from flow */
+        div[data-testid="stVerticalBlock"]:has(.header-row-marker) > div[data-testid="stLayoutWrapper"]:has(> div[data-testid="stPopover"]) {
             position: absolute !important;
             top: 15px !important;
             right: 15px !important;
@@ -207,7 +207,7 @@ if page == "Inventory":
             z-index: 10;
         }
         /* Make the popover button a compact circle */
-        div[data-testid="stVerticalBlockBorderWrapper"]:has(.header-row-marker) div[data-testid="stPopover"] button {
+        div[data-testid="stVerticalBlock"]:has(.header-row-marker) > div[data-testid="stLayoutWrapper"]:has(> div[data-testid="stPopover"]) button {
             padding: 0 !important;
             width: 32px !important;
             height: 32px !important;
