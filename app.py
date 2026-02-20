@@ -180,6 +180,8 @@ if not check_password():
 st.sidebar.title("🎈 PopStock")
 page = st.sidebar.radio("Go to", ["Inventory", "Scan Shipment", "Add Manually", "Analytics", "Settings"])
 st.sidebar.markdown("---")
+view_mode = st.sidebar.radio("View Mode", ["💻 Desktop", "📱 Mobile"])
+st.sidebar.markdown("---")
 st.sidebar.markdown("🛒 **[Open Supplier Site](https://bargainballoons.com)**")
 
 latex_thresholds = load_settings()
@@ -203,21 +205,48 @@ if page == "Inventory":
             latex_df = latex_df[latex_df['color'].str.contains(search, case=False) | latex_df['brand'].str.contains(search, case=False)]
 
         for index, row in latex_df.iterrows():
-            with st.container(border=True):
-                c_img, c_title, c_edit = st.columns([1, 4, 1])
-                with c_img:
-                    st.markdown(f'<div style="background-color:{row["hex"]}; width:50px; height:50px; border-radius:50%; border: 2px solid #ddd; margin-top:5px;"></div>', unsafe_allow_html=True)
-                with c_title:
+            if view_mode == "💻 Desktop":
+                with st.container():
                     st.markdown(f"### {row['brand']} - {row['color']}")
-                
-                with c_edit:
-                    with st.popover("⚙️ Edit", use_container_width=True):
+                    c1, c2 = st.columns([1, 6])
+                    with c1:
+                        st.markdown(f'<div style="background-color:{row["hex"]}; width:60px; height:60px; border-radius:50%; border: 2px solid #ddd;"></div>', unsafe_allow_html=True)
+                    with c2:
+                        cols = st.columns(len(LATEX_SIZES))
+                        for i, size in enumerate(LATEX_SIZES):
+                            qty = row[size]
+                            
+                            thresholds = latex_thresholds[size]
+                            if qty <= thresholds["low"]:
+                                color_alert = "red"
+                            elif qty <= thresholds["medium"]:
+                                color_alert = "orange"
+                            else:
+                                color_alert = "green"
+
+                            cols[i].markdown(f"**{size}**")
+                            cols[i].markdown(f":{color_alert}[**{qty} bags**]")
+                            
+                            if cols[i].button("➖", key=f"d_l_sub_{row['id']}_{size}"):
+                                if qty > 0:
+                                    df.at[index, size] = qty - 1
+                                    current_month_str = datetime.now().strftime("%Y-%m")
+                                    usage_dict = df.at[index, 'monthly_usage']
+                                    usage_dict[current_month_str] = usage_dict.get(current_month_str, 0) + 1
+                                    save_data(df)
+                                    st.rerun()
+                            if cols[i].button("➕", key=f"d_l_add_{row['id']}_{size}"):
+                                df.at[index, size] = qty + 1
+                                save_data(df)
+                                st.rerun()
+                    
+                    with st.popover("⚙️ Edit / Delete"):
                         st.markdown(f"**Edit {row['brand']} - {row['color']}**")
-                        new_brand = st.text_input("Brand", value=row['brand'], key=f"edit_brand_l_{row['id']}")
-                        new_color = st.text_input("Color Name", value=row['color'], key=f"edit_color_l_{row['id']}")
-                        new_hex = st.color_picker("Color Match", value=row['hex'], key=f"edit_hex_l_{row['id']}")
+                        new_brand = st.text_input("Brand", value=row['brand'], key=f"d_edit_brand_l_{row['id']}")
+                        new_color = st.text_input("Color Name", value=row['color'], key=f"d_edit_color_l_{row['id']}")
+                        new_hex = st.color_picker("Color Match", value=row['hex'], key=f"d_edit_hex_l_{row['id']}")
                         
-                        if st.button("Save Changes", key=f"save_l_{row['id']}", use_container_width=True):
+                        if st.button("Save Changes", key=f"d_save_l_{row['id']}"):
                             df.at[index, 'brand'] = new_brand
                             df.at[index, 'color'] = new_color
                             df.at[index, 'hex'] = new_hex
@@ -225,17 +254,44 @@ if page == "Inventory":
                             st.rerun()
                         
                         st.divider()
-                        if st.checkbox("Confirm Delete", key=f"confirm_delete_l_{row['id']}"):
-                            if st.button("❌ Delete Permanently", type="primary", key=f"delete_l_{row['id']}", use_container_width=True):
+                        if st.checkbox("Confirm Delete", key=f"d_confirm_delete_l_{row['id']}"):
+                            if st.button("❌ Delete Permanently", type="primary", key=f"d_delete_l_{row['id']}"):
                                 df.drop(index, inplace=True)
                                 save_data(df)
                                 st.rerun()
 
-                # Sizes grid
-                for i in range(0, len(LATEX_SIZES), 3):
-                    chunk = LATEX_SIZES[i:i+3]
-                    cols = st.columns(3)
-                    for j, size in enumerate(chunk):
+                    st.divider()
+            else: # Mobile
+                with st.container(border=True):
+                    c_img, c_title, c_edit = st.columns([1, 4, 1])
+                    with c_img:
+                        st.markdown(f'<div style="background-color:{row["hex"]}; width:40px; height:40px; border-radius:50%; border: 2px solid #ddd; margin-top:10px;"></div>', unsafe_allow_html=True)
+                    with c_title:
+                        st.markdown(f"**{row['brand']}**<br/>{row['color']}", unsafe_allow_html=True)
+                    
+                    with c_edit:
+                        with st.popover("⚙️"):
+                            st.markdown(f"**Edit {row['brand']} - {row['color']}**")
+                            new_brand = st.text_input("Brand", value=row['brand'], key=f"m_edit_brand_l_{row['id']}")
+                            new_color = st.text_input("Color Name", value=row['color'], key=f"m_edit_color_l_{row['id']}")
+                            new_hex = st.color_picker("Color Match", value=row['hex'], key=f"m_edit_hex_l_{row['id']}")
+                            
+                            if st.button("Save Changes", key=f"m_save_l_{row['id']}", use_container_width=True):
+                                df.at[index, 'brand'] = new_brand
+                                df.at[index, 'color'] = new_color
+                                df.at[index, 'hex'] = new_hex
+                                save_data(df)
+                                st.rerun()
+                            
+                            st.divider()
+                            if st.checkbox("Confirm Delete", key=f"m_confirm_delete_l_{row['id']}"):
+                                if st.button("❌ Delete Permanently", type="primary", key=f"m_delete_l_{row['id']}", use_container_width=True):
+                                    df.drop(index, inplace=True)
+                                    save_data(df)
+                                    st.rerun()
+
+                    # Sizes list mobile
+                    for size in LATEX_SIZES:
                         qty = row[size]
                         thresholds = latex_thresholds[size]
                         
@@ -246,21 +302,21 @@ if page == "Inventory":
                         else:
                             color_alert = "green"
                             
-                        with cols[j]:
-                            st.markdown(f"**{size}**: :{color_alert}[**{qty} bags**]")
-                            btn_c1, btn_c2 = st.columns(2)
-                            if btn_c1.button("➖", key=f"l_sub_{row['id']}_{size}", use_container_width=True):
-                                if qty > 0:
-                                    df.at[index, size] = qty - 1
-                                    current_month_str = datetime.now().strftime("%Y-%m")
-                                    usage_dict = df.at[index, 'monthly_usage']
-                                    usage_dict[current_month_str] = usage_dict.get(current_month_str, 0) + 1
-                                    save_data(df)
-                                    st.rerun()
-                            if btn_c2.button("➕", key=f"l_add_{row['id']}_{size}", use_container_width=True):
-                                df.at[index, size] = qty + 1
+                        c_label, c_sub, c_qty, c_add = st.columns([2, 1, 1.5, 1])
+                        c_label.markdown(f"**{size}**")
+                        if c_sub.button("➖", key=f"m_l_sub_{row['id']}_{size}"):
+                            if qty > 0:
+                                df.at[index, size] = qty - 1
+                                current_month_str = datetime.now().strftime("%Y-%m")
+                                usage_dict = df.at[index, 'monthly_usage']
+                                usage_dict[current_month_str] = usage_dict.get(current_month_str, 0) + 1
                                 save_data(df)
                                 st.rerun()
+                        c_qty.markdown(f"<div style='text-align: center; margin-top: 5px;'>:{color_alert}[**{qty}**]</div>", unsafe_allow_html=True)
+                        if c_add.button("➕", key=f"m_l_add_{row['id']}_{size}"):
+                            df.at[index, size] = qty + 1
+                            save_data(df)
+                            st.rerun()
 
     # --- TAB 2: FOIL ---
     with tab_foil:
@@ -282,27 +338,52 @@ if page == "Inventory":
             foil_df = foil_df.sort_values(by=['foil_type', 'design'])
 
         for index, row in foil_df.iterrows():
-            with st.container(border=True):
-                c_img, c_title, c_edit = st.columns([1, 4, 1])
-                with c_img:
-                    # Square icon for foils
-                    st.markdown(f'<div style="background-color:{row["hex"]}; width:50px; height:50px; border-radius:10%; border: 2px solid #ddd; margin-top:5px;"></div>', unsafe_allow_html=True)
-                with c_title:
+            if view_mode == "💻 Desktop":
+                with st.container():
                     # Foil Header: "Gold Number 1"
                     st.markdown(f"### {row['color']} - {row['design']} ({row['foil_type']})")
-                
-                with c_edit:
-                    with st.popover("⚙️ Edit", use_container_width=True):
+                    
+                    c1, c2 = st.columns([1, 6])
+                    with c1:
+                        # Square icon for foils
+                        st.markdown(f'<div style="background-color:{row["hex"]}; width:60px; height:60px; border-radius:10%; border: 2px solid #ddd;"></div>', unsafe_allow_html=True)
+                    
+                    with c2:
+                        cols = st.columns(3)
+                        # FOIL SIZES: Small vs Large
+                        foil_sizes = [("small", "Small (16in/Air)"), ("large", "Large (40in/Helium)")]
+                        
+                        for i, (field, label) in enumerate(foil_sizes):
+                            qty = row[field]
+                            color_alert = "red" if qty == 0 else "green"
+                            cols[i].markdown(f"**{label}**")
+                            cols[i].markdown(f":{color_alert}[**{qty}**]")
+                            
+                            if cols[i].button("➖", key=f"d_f_sub_{row['id']}_{field}"):
+                                if qty > 0:
+                                    df.at[index, field] = qty - 1
+                                    # Update monthly usage
+                                    current_month_str = datetime.now().strftime("%Y-%m")
+                                    usage_dict = df.at[index, 'monthly_usage']
+                                    usage_dict[current_month_str] = usage_dict.get(current_month_str, 0) + 1
+                                    save_data(df)
+                                    st.rerun()
+                            if cols[i].button("➕", key=f"d_f_add_{row['id']}_{field}"):
+                                df.at[index, field] = qty + 1
+                                save_data(df)
+                                st.rerun()
+                    
+                    with st.popover("⚙️ Edit / Delete"):
                         st.markdown(f"**Edit {row['color']} - {row['design']}**")
-                        new_brand = st.text_input("Brand", value=row['brand'], key=f"edit_brand_f_{row['id']}")
-                        new_color = st.text_input("Color Name", value=row['color'], key=f"edit_color_f_{row['id']}")
-                        new_design = st.text_input("Design", value=row['design'], key=f"edit_design_f_{row['id']}")
+                        new_brand = st.text_input("Brand", value=row['brand'], key=f"d_edit_brand_f_{row['id']}")
+                        new_color = st.text_input("Color Name", value=row['color'], key=f"d_edit_color_f_{row['id']}")
+                        new_design = st.text_input("Design", value=row['design'], key=f"d_edit_design_f_{row['id']}")
                         foil_types = ["Number", "Letter", "Shape"]
                         current_type_index = foil_types.index(row['foil_type']) if row['foil_type'] in foil_types else 0
-                        new_foil_type = st.selectbox("Foil Type", foil_types, index=current_type_index, key=f"edit_type_f_{row['id']}")
-                        new_hex = st.color_picker("Color Match", value=row['hex'], key=f"edit_hex_f_{row['id']}")
+                        new_foil_type = st.selectbox("Foil Type", foil_types, index=current_type_index, key=f"d_edit_type_f_{row['id']}")
+                        new_hex = st.color_picker("Color Match", value=row['hex'], key=f"d_edit_hex_f_{row['id']}")
 
-                        if st.button("Save Changes", key=f"save_f_{row['id']}", use_container_width=True):
+                        if st.button("Save Changes", key=f"d_save_f_{row['id']}"):
                             df.at[index, 'brand'] = new_brand
                             df.at[index, 'color'] = new_color
                             df.at[index, 'design'] = new_design
@@ -312,33 +393,66 @@ if page == "Inventory":
                             st.rerun()
                         
                         st.divider()
-                        if st.checkbox("Confirm Delete", key=f"confirm_delete_f_{row['id']}"):
-                            if st.button("❌ Delete Permanently", type="primary", key=f"delete_f_{row['id']}", use_container_width=True):
+                        if st.checkbox("Confirm Delete", key=f"d_confirm_delete_f_{row['id']}"):
+                            if st.button("❌ Delete Permanently", type="primary", key=f"d_delete_f_{row['id']}"):
                                 df.drop(index, inplace=True)
                                 save_data(df)
                                 st.rerun()
-                
-                # FOIL SIZES: Small vs Large grid
-                cols = st.columns(2)
-                foil_sizes = [("small", "Small (16in)"), ("large", "Large (40in)")]
-                
-                for i, (field, label) in enumerate(foil_sizes):
-                    qty = row[field]
-                    color_alert = "red" if qty == 0 else "green"
+                                
+                    st.divider()
+            else: # Mobile
+                with st.container(border=True):
+                    c_img, c_title, c_edit = st.columns([1, 4, 1])
+                    with c_img:
+                        st.markdown(f'<div style="background-color:{row["hex"]}; width:40px; height:40px; border-radius:10%; border: 2px solid #ddd; margin-top:10px;"></div>', unsafe_allow_html=True)
+                    with c_title:
+                        st.markdown(f"**{row['color']} - {row['design']}**<br/>({row['foil_type']})", unsafe_allow_html=True)
                     
-                    with cols[i]:
-                        st.markdown(f"**{label}**: :{color_alert}[**{qty}**]")
-                        btn_c1, btn_c2 = st.columns(2)
-                        if btn_c1.button("➖", key=f"f_sub_{row['id']}_{field}", use_container_width=True):
+                    with c_edit:
+                        with st.popover("⚙️"):
+                            st.markdown(f"**Edit {row['color']} - {row['design']}**")
+                            new_brand = st.text_input("Brand", value=row['brand'], key=f"m_edit_brand_f_{row['id']}")
+                            new_color = st.text_input("Color Name", value=row['color'], key=f"m_edit_color_f_{row['id']}")
+                            new_design = st.text_input("Design", value=row['design'], key=f"m_edit_design_f_{row['id']}")
+                            foil_types = ["Number", "Letter", "Shape"]
+                            current_type_index = foil_types.index(row['foil_type']) if row['foil_type'] in foil_types else 0
+                            new_foil_type = st.selectbox("Foil Type", foil_types, index=current_type_index, key=f"m_edit_type_f_{row['id']}")
+                            new_hex = st.color_picker("Color Match", value=row['hex'], key=f"m_edit_hex_f_{row['id']}")
+
+                            if st.button("Save Changes", key=f"m_save_f_{row['id']}", use_container_width=True):
+                                df.at[index, 'brand'] = new_brand
+                                df.at[index, 'color'] = new_color
+                                df.at[index, 'design'] = new_design
+                                df.at[index, 'foil_type'] = new_foil_type
+                                df.at[index, 'hex'] = new_hex
+                                save_data(df)
+                                st.rerun()
+                            
+                            st.divider()
+                            if st.checkbox("Confirm Delete", key=f"m_confirm_delete_f_{row['id']}"):
+                                if st.button("❌ Delete Permanently", type="primary", key=f"m_delete_f_{row['id']}", use_container_width=True):
+                                    df.drop(index, inplace=True)
+                                    save_data(df)
+                                    st.rerun()
+                    
+                    # FOIL SIZES list
+                    foil_sizes = [("small", "Small (16in)"), ("large", "Large (40in)")]
+                    for field, label in foil_sizes:
+                        qty = row[field]
+                        color_alert = "red" if qty == 0 else "green"
+                        
+                        c_label, c_sub, c_qty, c_add = st.columns([2, 1, 1.5, 1])
+                        c_label.markdown(f"**{label}**")
+                        if c_sub.button("➖", key=f"m_f_sub_{row['id']}_{field}"):
                             if qty > 0:
                                 df.at[index, field] = qty - 1
-                                # Update monthly usage
                                 current_month_str = datetime.now().strftime("%Y-%m")
                                 usage_dict = df.at[index, 'monthly_usage']
                                 usage_dict[current_month_str] = usage_dict.get(current_month_str, 0) + 1
                                 save_data(df)
                                 st.rerun()
-                        if btn_c2.button("➕", key=f"f_add_{row['id']}_{field}", use_container_width=True):
+                        c_qty.markdown(f"<div style='text-align: center; margin-top: 5px;'>:{color_alert}[**{qty}**]</div>", unsafe_allow_html=True)
+                        if c_add.button("➕", key=f"m_f_add_{row['id']}_{field}"):
                             df.at[index, field] = qty + 1
                             save_data(df)
                             st.rerun()
