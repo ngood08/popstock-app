@@ -198,18 +198,18 @@ if page == "Inventory":
         div[data-testid="stVerticalBlockBorderWrapper"] {
             position: relative;
         }
-        div[data-testid="stVerticalBlockBorderWrapper"] .stPopover {
+        div[data-testid="stVerticalBlockBorderWrapper"] div[data-testid="stPopover"] {
             position: absolute !important;
-            top: 10px !important;
-            right: 10px !important;
+            top: 12px !important;
+            right: 12px !important;
             width: auto !important;
             z-index: 10;
         }
-        div[data-testid="stVerticalBlockBorderWrapper"] .stPopover button {
-            padding: 4px 10px !important;
+        div[data-testid="stVerticalBlockBorderWrapper"] div[data-testid="stPopover"] button {
+            padding: 2px 8px !important;
             min-height: 0 !important;
             height: auto !important;
-            border-radius: 20px !important;
+            line-height: 1.5 !important;
         }
         /* Make number inputs more compact */
         input[type="number"] {
