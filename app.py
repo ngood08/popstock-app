@@ -209,8 +209,8 @@ if page == "Inventory":
         /* 3. Make the popover button a compact circle */
         div[data-testid="stVerticalBlock"]:has(> div[data-testid="stElementContainer"] .header-row-marker) div[data-testid="stPopover"] button {
             padding: 0 !important;
-            width: 32px !important;
-            height: 32px !important;
+            width: 38px !important;
+            height: 38px !important;
             min-height: 0 !important;
             border-radius: 50% !important;
             line-height: 1 !important;
@@ -218,9 +218,13 @@ if page == "Inventory":
             align-items: center !important;
             justify-content: center !important;
         }
-        /* 4. Hide the chevron icon so the gear fits in the circle */
-        div[data-testid="stVerticalBlock"]:has(> div[data-testid="stElementContainer"] .header-row-marker) div[data-testid="stPopover"] button svg {
+        /* 4. Hide the chevron icon container so the gear fits perfectly */
+        div[data-testid="stVerticalBlock"]:has(> div[data-testid="stElementContainer"] .header-row-marker) div[data-testid="stPopover"] button > div > div:last-child {
             display: none !important;
+        }
+        div[data-testid="stVerticalBlock"]:has(> div[data-testid="stElementContainer"] .header-row-marker) div[data-testid="stPopover"] button p {
+            margin: 0 !important;
+            font-size: 1.2em !important;
         }
         /* Make number inputs more compact */
         input[type="number"] {
