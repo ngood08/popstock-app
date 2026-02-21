@@ -194,31 +194,26 @@ if page == "Inventory":
     if view_mode == "📱 Mobile":
         st.markdown("""
         <style>
-        /* Force the header columns to stay side-by-side on mobile without overflowing */
-        div[data-testid="stHorizontalBlock"]:has(.header-row-marker) {
-            flex-direction: row !important;
-            flex-wrap: nowrap !important;
-            align-items: center !important;
-            gap: 0.5rem !important;
+        /* Card container relative for absolute positioning */
+        div[data-testid="stVerticalBlock"]:has(.header-row-marker) {
+            position: relative !important;
         }
-        /* Title Column (expands) */
-        div[data-testid="stHorizontalBlock"]:has(.header-row-marker) > div[data-testid="column"]:nth-child(1) {
+        /* Float the entire layout wrapper containing the popover to top right */
+        div[data-testid="stVerticalBlock"]:has(.header-row-marker) > div[data-testid="stLayoutWrapper"]:has(div[data-testid="stPopover"]) {
+            position: absolute !important;
+            top: 5px !important;
+            right: 5px !important;
             width: auto !important;
-            flex: 1 1 auto !important;
-            min-width: 0 !important;
+            z-index: 10;
         }
-        /* Button Column (shrinks to fit) */
-        div[data-testid="stHorizontalBlock"]:has(.header-row-marker) > div[data-testid="column"]:nth-child(2) {
-            width: auto !important;
-            flex: 0 0 auto !important;
-            min-width: 0 !important;
-        }
-        /* Make the popover button compact */
-        div[data-testid="stHorizontalBlock"]:has(.header-row-marker) .stPopover button {
-            padding: 4px 8px !important;
+        /* Make the popover button a compact circle */
+        div[data-testid="stVerticalBlock"]:has(.header-row-marker) div[data-testid="stPopover"] button {
+            padding: 0 !important;
+            width: 32px !important;
+            height: 32px !important;
             min-height: 0 !important;
-            height: auto !important;
-            border-radius: 20px !important;
+            border-radius: 50% !important;
+            line-height: 1 !important;
         }
         /* Make number inputs more compact */
         input[type="number"] {
@@ -299,41 +294,38 @@ if page == "Inventory":
                     st.divider()
             else: # Mobile
                 with st.container(border=True):
-                    c_title, c_edit = st.columns([5, 1])
-                    with c_title:
-                        st.markdown(
-                            f"""
-                            <div class="header-row-marker" style="display: flex; align-items: center; gap: 10px; margin-top: 5px;">
-                                <div style="background-color:{row['hex']}; width:35px; height:35px; border-radius:50%; border: 1px solid #ddd; flex-shrink: 0;"></div>
-                                <div style="line-height: 1.2;">
-                                    <strong>{row['brand']}</strong><br/>
-                                    <span style="font-size: 0.9em;">{row['color']}</span>
-                                </div>
+                    st.markdown(
+                        f"""
+                        <div class="header-row-marker" style="display: flex; align-items: center; gap: 10px; margin-top: 5px; padding-right: 40px;">
+                            <div style="background-color:{row['hex']}; width:35px; height:35px; border-radius:50%; border: 1px solid #ddd; flex-shrink: 0;"></div>
+                            <div style="line-height: 1.2;">
+                                <strong>{row['brand']}</strong><br/>
+                                <span style="font-size: 0.9em;">{row['color']}</span>
                             </div>
-                            """, 
-                            unsafe_allow_html=True
-                        )
+                        </div>
+                        """, 
+                        unsafe_allow_html=True
+                    )
                     
-                    with c_edit:
-                        with st.popover("⚙️"):
-                            st.markdown(f"**Edit {row['brand']} - {row['color']}**")
-                            new_brand = st.text_input("Brand", value=row['brand'], key=f"m_edit_brand_l_{row['id']}")
-                            new_color = st.text_input("Color Name", value=row['color'], key=f"m_edit_color_l_{row['id']}")
-                            new_hex = st.color_picker("Color Match", value=row['hex'], key=f"m_edit_hex_l_{row['id']}")
-                            
-                            if st.button("Save Changes", key=f"m_save_l_{row['id']}", use_container_width=True):
-                                df.at[index, 'brand'] = new_brand
-                                df.at[index, 'color'] = new_color
-                                df.at[index, 'hex'] = new_hex
+                    with st.popover("⚙️"):
+                        st.markdown(f"**Edit {row['brand']} - {row['color']}**")
+                        new_brand = st.text_input("Brand", value=row['brand'], key=f"m_edit_brand_l_{row['id']}")
+                        new_color = st.text_input("Color Name", value=row['color'], key=f"m_edit_color_l_{row['id']}")
+                        new_hex = st.color_picker("Color Match", value=row['hex'], key=f"m_edit_hex_l_{row['id']}")
+                        
+                        if st.button("Save Changes", key=f"m_save_l_{row['id']}", use_container_width=True):
+                            df.at[index, 'brand'] = new_brand
+                            df.at[index, 'color'] = new_color
+                            df.at[index, 'hex'] = new_hex
+                            save_data(df)
+                            st.rerun()
+                        
+                        st.divider()
+                        if st.checkbox("Confirm Delete", key=f"m_confirm_delete_l_{row['id']}"):
+                            if st.button("❌ Delete Permanently", type="primary", key=f"m_delete_l_{row['id']}", use_container_width=True):
+                                df.drop(index, inplace=True)
                                 save_data(df)
                                 st.rerun()
-                            
-                            st.divider()
-                            if st.checkbox("Confirm Delete", key=f"m_confirm_delete_l_{row['id']}"):
-                                if st.button("❌ Delete Permanently", type="primary", key=f"m_delete_l_{row['id']}", use_container_width=True):
-                                    df.drop(index, inplace=True)
-                                    save_data(df)
-                                    st.rerun()
 
                     st.markdown("<hr style='margin: 10px 0; border: none; border-top: 1px solid #eee;'>", unsafe_allow_html=True)
 
@@ -448,47 +440,44 @@ if page == "Inventory":
                     st.divider()
             else: # Mobile
                 with st.container(border=True):
-                    c_title, c_edit = st.columns([5, 1])
-                    with c_title:
-                        st.markdown(
-                            f"""
-                            <div class="header-row-marker" style="display: flex; align-items: center; gap: 10px; margin-top: 5px;">
-                                <div style="background-color:{row['hex']}; width:35px; height:35px; border-radius:10%; border: 1px solid #ddd; flex-shrink: 0;"></div>
-                                <div style="line-height: 1.2;">
-                                    <strong>{row['color']} - {row['design']}</strong><br/>
-                                    <span style="font-size: 0.9em;">({row['foil_type']})</span>
-                                </div>
+                    st.markdown(
+                        f"""
+                        <div class="header-row-marker" style="display: flex; align-items: center; gap: 10px; margin-top: 5px; padding-right: 40px;">
+                            <div style="background-color:{row['hex']}; width:35px; height:35px; border-radius:10%; border: 1px solid #ddd; flex-shrink: 0;"></div>
+                            <div style="line-height: 1.2;">
+                                <strong>{row['color']} - {row['design']}</strong><br/>
+                                <span style="font-size: 0.9em;">({row['foil_type']})</span>
                             </div>
-                            """, 
-                            unsafe_allow_html=True
-                        )
+                        </div>
+                        """, 
+                        unsafe_allow_html=True
+                    )
                     
-                    with c_edit:
-                        with st.popover("⚙️"):
-                            st.markdown(f"**Edit {row['color']} - {row['design']}**")
-                            new_brand = st.text_input("Brand", value=row['brand'], key=f"m_edit_brand_f_{row['id']}")
-                            new_color = st.text_input("Color Name", value=row['color'], key=f"m_edit_color_f_{row['id']}")
-                            new_design = st.text_input("Design", value=row['design'], key=f"m_edit_design_f_{row['id']}")
-                            foil_types = ["Number", "Letter", "Shape"]
-                            current_type_index = foil_types.index(row['foil_type']) if row['foil_type'] in foil_types else 0
-                            new_foil_type = st.selectbox("Foil Type", foil_types, index=current_type_index, key=f"m_edit_type_f_{row['id']}")
-                            new_hex = st.color_picker("Color Match", value=row['hex'], key=f"m_edit_hex_f_{row['id']}")
+                    with st.popover("⚙️"):
+                        st.markdown(f"**Edit {row['color']} - {row['design']}**")
+                        new_brand = st.text_input("Brand", value=row['brand'], key=f"m_edit_brand_f_{row['id']}")
+                        new_color = st.text_input("Color Name", value=row['color'], key=f"m_edit_color_f_{row['id']}")
+                        new_design = st.text_input("Design", value=row['design'], key=f"m_edit_design_f_{row['id']}")
+                        foil_types = ["Number", "Letter", "Shape"]
+                        current_type_index = foil_types.index(row['foil_type']) if row['foil_type'] in foil_types else 0
+                        new_foil_type = st.selectbox("Foil Type", foil_types, index=current_type_index, key=f"m_edit_type_f_{row['id']}")
+                        new_hex = st.color_picker("Color Match", value=row['hex'], key=f"m_edit_hex_f_{row['id']}")
 
-                            if st.button("Save Changes", key=f"m_save_f_{row['id']}", use_container_width=True):
-                                df.at[index, 'brand'] = new_brand
-                                df.at[index, 'color'] = new_color
-                                df.at[index, 'design'] = new_design
-                                df.at[index, 'foil_type'] = new_foil_type
-                                df.at[index, 'hex'] = new_hex
+                        if st.button("Save Changes", key=f"m_save_f_{row['id']}", use_container_width=True):
+                            df.at[index, 'brand'] = new_brand
+                            df.at[index, 'color'] = new_color
+                            df.at[index, 'design'] = new_design
+                            df.at[index, 'foil_type'] = new_foil_type
+                            df.at[index, 'hex'] = new_hex
+                            save_data(df)
+                            st.rerun()
+                        
+                        st.divider()
+                        if st.checkbox("Confirm Delete", key=f"m_confirm_delete_f_{row['id']}"):
+                            if st.button("❌ Delete Permanently", type="primary", key=f"m_delete_f_{row['id']}", use_container_width=True):
+                                df.drop(index, inplace=True)
                                 save_data(df)
                                 st.rerun()
-                            
-                            st.divider()
-                            if st.checkbox("Confirm Delete", key=f"m_confirm_delete_f_{row['id']}"):
-                                if st.button("❌ Delete Permanently", type="primary", key=f"m_delete_f_{row['id']}", use_container_width=True):
-                                    df.drop(index, inplace=True)
-                                    save_data(df)
-                                    st.rerun()
                     
                     st.markdown("<hr style='margin: 10px 0; border: none; border-top: 1px solid #eee;'>", unsafe_allow_html=True)
                     
