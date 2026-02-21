@@ -293,6 +293,18 @@ if page == "Inventory":
             margin: 0 !important;
             padding: 0 !important;
         }
+        /* Safely force size columns to stay side-by-side on mobile without stacking */
+        div[data-testid="stHorizontalBlock"]:has(.mobile-grid-marker) {
+            display: flex !important;
+            flex-direction: row !important;
+            flex-wrap: nowrap !important;
+            gap: 1rem !important;
+        }
+        div[data-testid="stHorizontalBlock"]:has(.mobile-grid-marker) > div[data-testid="column"] {
+            width: 50% !important;
+            flex: 1 1 50% !important;
+            min-width: 0 !important;
+        }
         /* Make number inputs more compact */
         input[type="number"] {
             text-align: center !important;
@@ -315,43 +327,39 @@ if page == "Inventory":
 
         for index, row in latex_df.iterrows():
             if view_mode == "💻 Desktop":
-                with st.container(border=True):
+                with st.container():
                     st.markdown(f"### {row['brand']} - {row['color']}")
                     c1, c2 = st.columns([1, 6])
                     with c1:
                         st.markdown(f'<div style="background-color:{row["hex"]}; width:60px; height:60px; border-radius:50%; border: 2px solid #ddd;"></div>', unsafe_allow_html=True)
                     with c2:
-                        # Sizes grid desktop (2 columns per row)
-                        for i in range(0, len(LATEX_SIZES), 2):
-                            chunk = LATEX_SIZES[i:i+2]
-                            cols = st.columns(2)
-                            for j, size in enumerate(chunk):
-                                qty = row[size]
-                                
-                                thresholds = latex_thresholds[size]
-                                if qty <= thresholds["low"]:
-                                    color_alert = "red"
-                                elif qty <= thresholds["medium"]:
-                                    color_alert = "orange"
-                                else:
-                                    color_alert = "green"
+                        cols = st.columns(len(LATEX_SIZES))
+                        for i, size in enumerate(LATEX_SIZES):
+                            qty = row[size]
+                            
+                            thresholds = latex_thresholds[size]
+                            if qty <= thresholds["low"]:
+                                color_alert = "red"
+                            elif qty <= thresholds["medium"]:
+                                color_alert = "orange"
+                            else:
+                                color_alert = "green"
 
-                                with cols[j]:
-                                    c_label, c_sub, c_qty, c_add = st.columns([2, 1, 1.5, 1])
-                                    c_label.markdown(f"**{size}**")
-                                    if c_sub.button("➖", key=f"d_l_sub_{row['id']}_{size}", use_container_width=True):
-                                        if qty > 0:
-                                            df.at[index, size] = qty - 1
-                                            current_month_str = datetime.now().strftime("%Y-%m")
-                                            usage_dict = df.at[index, 'monthly_usage']
-                                            usage_dict[current_month_str] = usage_dict.get(current_month_str, 0) + 1
-                                            save_data(df)
-                                            st.rerun()
-                                    c_qty.markdown(f"<div style='text-align: center; margin-top: 5px;'><span style='color: {color_alert}; font-weight: bold;'>{qty} bags</span></div>", unsafe_allow_html=True)
-                                    if c_add.button("➕", key=f"d_l_add_{row['id']}_{size}", use_container_width=True):
-                                        df.at[index, size] = qty + 1
-                                        save_data(df)
-                                        st.rerun()
+                            cols[i].markdown(f"**{size}**")
+                            cols[i].markdown(f":{color_alert}[**{qty} bags**]")
+                            
+                            if cols[i].button("➖", key=f"d_l_sub_{row['id']}_{size}"):
+                                if qty > 0:
+                                    df.at[index, size] = qty - 1
+                                    current_month_str = datetime.now().strftime("%Y-%m")
+                                    usage_dict = df.at[index, 'monthly_usage']
+                                    usage_dict[current_month_str] = usage_dict.get(current_month_str, 0) + 1
+                                    save_data(df)
+                                    st.rerun()
+                            if cols[i].button("➕", key=f"d_l_add_{row['id']}_{size}"):
+                                df.at[index, size] = qty + 1
+                                save_data(df)
+                                st.rerun()
                     
                     with st.popover("⚙️ Edit / Delete"):
                         st.markdown(f"**Edit {row['brand']} - {row['color']}**")
@@ -372,6 +380,8 @@ if page == "Inventory":
                                 df.drop(index, inplace=True)
                                 save_data(df)
                                 st.rerun()
+
+                    st.divider()
             else: # Mobile
                 with st.container(border=True):
                     st.markdown(
@@ -420,6 +430,7 @@ if page == "Inventory":
                             indicator = "🔴" if qty <= thresholds["low"] else "🟠" if qty <= thresholds["medium"] else "🟢"
                                 
                             with cols[j]:
+                                st.markdown('<div class="mobile-grid-marker" style="display:none;"></div>', unsafe_allow_html=True)
                                 new_qty = st.number_input(
                                     f"{indicator} {size}",
                                     min_value=0,
@@ -457,7 +468,7 @@ if page == "Inventory":
 
         for index, row in foil_df.iterrows():
             if view_mode == "💻 Desktop":
-                with st.container(border=True):
+                with st.container():
                     # Foil Header: "Gold Number 1"
                     st.markdown(f"### {row['color']} - {row['design']} ({row['foil_type']})")
                     
@@ -467,30 +478,29 @@ if page == "Inventory":
                         st.markdown(f'<div style="background-color:{row["hex"]}; width:60px; height:60px; border-radius:10%; border: 2px solid #ddd;"></div>', unsafe_allow_html=True)
                     
                     with c2:
-                        cols = st.columns(2)
+                        cols = st.columns(3)
                         # FOIL SIZES: Small vs Large
                         foil_sizes = [("small", "Small (16in/Air)"), ("large", "Large (40in/Helium)")]
                         
                         for i, (field, label) in enumerate(foil_sizes):
                             qty = row[field]
                             color_alert = "red" if qty == 0 else "green"
-                            with cols[i]:
-                                c_label, c_sub, c_qty, c_add = st.columns([2, 1, 1.5, 1])
-                                c_label.markdown(f"**{label}**")
-                                if c_sub.button("➖", key=f"d_f_sub_{row['id']}_{field}", use_container_width=True):
-                                    if qty > 0:
-                                        df.at[index, field] = qty - 1
-                                        # Update monthly usage
-                                        current_month_str = datetime.now().strftime("%Y-%m")
-                                        usage_dict = df.at[index, 'monthly_usage']
-                                        usage_dict[current_month_str] = usage_dict.get(current_month_str, 0) + 1
-                                        save_data(df)
-                                        st.rerun()
-                                c_qty.markdown(f"<div style='text-align: center; margin-top: 5px;'><span style='color: {color_alert}; font-weight: bold;'>{qty}</span></div>", unsafe_allow_html=True)
-                                if c_add.button("➕", key=f"d_f_add_{row['id']}_{field}", use_container_width=True):
-                                    df.at[index, field] = qty + 1
+                            cols[i].markdown(f"**{label}**")
+                            cols[i].markdown(f":{color_alert}[**{qty}**]")
+                            
+                            if cols[i].button("➖", key=f"d_f_sub_{row['id']}_{field}"):
+                                if qty > 0:
+                                    df.at[index, field] = qty - 1
+                                    # Update monthly usage
+                                    current_month_str = datetime.now().strftime("%Y-%m")
+                                    usage_dict = df.at[index, 'monthly_usage']
+                                    usage_dict[current_month_str] = usage_dict.get(current_month_str, 0) + 1
                                     save_data(df)
                                     st.rerun()
+                            if cols[i].button("➕", key=f"d_f_add_{row['id']}_{field}"):
+                                df.at[index, field] = qty + 1
+                                save_data(df)
+                                st.rerun()
                     
                     with st.popover("⚙️ Edit / Delete"):
                         st.markdown(f"**Edit {row['color']} - {row['design']}**")
@@ -517,6 +527,8 @@ if page == "Inventory":
                                 df.drop(index, inplace=True)
                                 save_data(df)
                                 st.rerun()
+                                
+                    st.divider()
             else: # Mobile
                 with st.container(border=True):
                     st.markdown(
@@ -568,6 +580,7 @@ if page == "Inventory":
                         indicator = "🔴" if qty == 0 else "🟢"
                         
                         with cols[j]:
+                            st.markdown('<div class="mobile-grid-marker" style="display:none;"></div>', unsafe_allow_html=True)
                             new_qty = st.number_input(
                                 f"{indicator} {label}",
                                 min_value=0,
