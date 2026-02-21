@@ -194,26 +194,31 @@ if page == "Inventory":
     if view_mode == "📱 Mobile":
         st.markdown("""
         <style>
-        /* Card container relative for absolute positioning */
-        div[data-testid="stVerticalBlock"]:has(.header-row-marker) {
-            position: relative;
+        /* Force the header columns to stay side-by-side on mobile without overflowing */
+        div[data-testid="stHorizontalBlock"]:has(.header-row-marker) {
+            flex-direction: row !important;
+            flex-wrap: nowrap !important;
+            align-items: center !important;
+            gap: 0.5rem !important;
         }
-        /* Float the entire popover wrapper to top right to remove it from flow */
-        div[data-testid="stVerticalBlock"]:has(.header-row-marker) > div[data-testid="stLayoutWrapper"]:has(> div[data-testid="stPopover"]) {
-            position: absolute !important;
-            top: 15px !important;
-            right: 15px !important;
+        /* Title Column (expands) */
+        div[data-testid="stHorizontalBlock"]:has(.header-row-marker) > div[data-testid="column"]:nth-child(1) {
             width: auto !important;
-            z-index: 10;
+            flex: 1 1 auto !important;
+            min-width: 0 !important;
         }
-        /* Make the popover button a compact circle */
-        div[data-testid="stVerticalBlock"]:has(.header-row-marker) > div[data-testid="stLayoutWrapper"]:has(> div[data-testid="stPopover"]) button {
-            padding: 0 !important;
-            width: 32px !important;
-            height: 32px !important;
+        /* Button Column (shrinks to fit) */
+        div[data-testid="stHorizontalBlock"]:has(.header-row-marker) > div[data-testid="column"]:nth-child(2) {
+            width: auto !important;
+            flex: 0 0 auto !important;
+            min-width: 0 !important;
+        }
+        /* Make the popover button compact */
+        div[data-testid="stHorizontalBlock"]:has(.header-row-marker) .stPopover button {
+            padding: 4px 8px !important;
             min-height: 0 !important;
-            border-radius: 50% !important;
-            line-height: 1 !important;
+            height: auto !important;
+            border-radius: 20px !important;
         }
         /* Make number inputs more compact */
         input[type="number"] {
