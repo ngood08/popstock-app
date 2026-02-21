@@ -222,9 +222,34 @@ if page == "Inventory":
         div[data-testid="stVerticalBlock"]:has(> div[data-testid="stElementContainer"] .header-row-marker) div[data-testid="stPopover"] button > div > div:last-child {
             display: none !important;
         }
+        /* 5. Force the inner button container and markdown to be perfectly centered */
+        div[data-testid="stVerticalBlock"]:has(> div[data-testid="stElementContainer"] .header-row-marker) div[data-testid="stPopover"] button > div > div:first-child {
+            display: flex !important;
+            align-items: center !important;
+            justify-content: center !important;
+            width: 100% !important;
+            height: 100% !important;
+        }
+        div[data-testid="stVerticalBlock"]:has(> div[data-testid="stElementContainer"] .header-row-marker) div[data-testid="stPopover"] button div[data-testid="stMarkdownContainer"] {
+            display: flex !important;
+            align-items: center !important;
+            justify-content: center !important;
+            width: 100% !important;
+            height: 100% !important;
+            margin: 0 !important;
+            padding: 0 !important;
+        }
         div[data-testid="stVerticalBlock"]:has(> div[data-testid="stElementContainer"] .header-row-marker) div[data-testid="stPopover"] button p {
             margin: 0 !important;
+            padding: 0 !important;
             font-size: 1.2em !important;
+            display: flex !important;
+            align-items: center !important;
+            justify-content: center !important;
+        }
+        div[data-testid="stVerticalBlock"]:has(> div[data-testid="stElementContainer"] .header-row-marker) div[data-testid="stPopover"] button span {
+            margin: 0 !important;
+            padding: 0 !important;
         }
         /* Make number inputs more compact */
         input[type="number"] {
