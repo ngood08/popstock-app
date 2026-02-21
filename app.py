@@ -194,26 +194,33 @@ if page == "Inventory":
     if view_mode == "📱 Mobile":
         st.markdown("""
         <style>
-        /* Card container relative for absolute positioning */
-        div[data-testid="stVerticalBlock"]:has(.header-row-marker) {
+        /* 1. Target EXACTLY the stVerticalBlock container of the card, preventing bleeding to parent tabs */
+        div[data-testid="stVerticalBlock"]:has(> div[data-testid="stElementContainer"] .header-row-marker) {
             position: relative !important;
         }
-        /* Float the entire layout wrapper containing the popover to top right */
-        div[data-testid="stVerticalBlock"]:has(.header-row-marker) > div[data-testid="stLayoutWrapper"]:has(div[data-testid="stPopover"]) {
+        /* 2. Float the entire layout wrapper containing the popover to top right */
+        div[data-testid="stVerticalBlock"]:has(> div[data-testid="stElementContainer"] .header-row-marker) > div[data-testid="stLayoutWrapper"]:has(div[data-testid="stPopover"]) {
             position: absolute !important;
-            top: 5px !important;
-            right: 5px !important;
+            top: 10px !important;
+            right: 10px !important;
             width: auto !important;
             z-index: 10;
         }
-        /* Make the popover button a compact circle */
-        div[data-testid="stVerticalBlock"]:has(.header-row-marker) div[data-testid="stPopover"] button {
+        /* 3. Make the popover button a compact circle */
+        div[data-testid="stVerticalBlock"]:has(> div[data-testid="stElementContainer"] .header-row-marker) div[data-testid="stPopover"] button {
             padding: 0 !important;
             width: 32px !important;
             height: 32px !important;
             min-height: 0 !important;
             border-radius: 50% !important;
             line-height: 1 !important;
+            display: flex !important;
+            align-items: center !important;
+            justify-content: center !important;
+        }
+        /* 4. Hide the chevron icon so the gear fits in the circle */
+        div[data-testid="stVerticalBlock"]:has(> div[data-testid="stElementContainer"] .header-row-marker) div[data-testid="stPopover"] button svg {
+            display: none !important;
         }
         /* Make number inputs more compact */
         input[type="number"] {
