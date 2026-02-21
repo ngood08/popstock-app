@@ -157,18 +157,48 @@ def check_password():
             st.warning("No 'APP_PASSWORD' found in Streamlit secrets. App is open to public.")
             st.session_state["password_correct"] = True
 
+    def render_login_ui(show_error=False):
+        st.markdown(
+            """
+            <style>
+            /* Make the password input look like a PIN pad */
+            div[data-baseweb="input"] input[type="password"] {
+                text-align: center !important;
+                font-size: 2rem !important;
+                letter-spacing: 0.5em !important;
+                padding: 10px !important;
+            }
+            /* Hide the password reveal toggle to keep it clean */
+            div[data-baseweb="input"] button {
+                display: none !important;
+            }
+            </style>
+            """,
+            unsafe_allow_html=True
+        )
+        st.markdown("<h1 style='text-align: center; margin-top: 10vh;'>🎈 PopStock</h1>", unsafe_allow_html=True)
+        st.markdown("<h4 style='text-align: center; color: #888; font-weight: normal;'>Enter PIN to unlock</h4>", unsafe_allow_html=True)
+        
+        _, col, _ = st.columns([1, 2, 1])
+        with col:
+            st.text_input(
+                "PIN", 
+                type="password", 
+                on_change=password_entered, 
+                key="password", 
+                label_visibility="collapsed",
+                placeholder="••••"
+            )
+            if show_error:
+                st.error("😕 PIN incorrect")
+
     if "password_correct" not in st.session_state:
         # First run, show input for password.
-        st.text_input(
-            "Please enter the app password to access PopStock", type="password", on_change=password_entered, key="password"
-        )
+        render_login_ui(show_error=False)
         return False
     elif not st.session_state["password_correct"]:
         # Password not correct, show input + error.
-        st.text_input(
-            "Please enter the app password to access PopStock", type="password", on_change=password_entered, key="password"
-        )
-        st.error("😕 Password incorrect")
+        render_login_ui(show_error=True)
         return False
     else:
         # Password correct.
