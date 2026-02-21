@@ -2,3 +2,4 @@ streamlit
 pandas
 Pillow
 google-generativeai
+streamlit-js-eval

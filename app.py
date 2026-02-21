@@ -1,4 +1,5 @@
 import streamlit as st
+from streamlit_js_eval import streamlit_js_eval
 import pandas as pd
 import json
 import os
@@ -180,7 +181,18 @@ if not check_password():
 st.sidebar.title("🎈 PopStock")
 page = st.sidebar.radio("Go to", ["Inventory", "Scan Shipment", "Add Manually", "Analytics", "Settings"])
 st.sidebar.markdown("---")
-view_mode = st.sidebar.radio("View Mode", ["💻 Desktop", "📱 Mobile"])
+
+# Auto-detect screen width to set view mode
+screen_width = streamlit_js_eval(js_expressions='window.innerWidth', key='SCR_WIDTH')
+
+# Default to Desktop if width is unknown (first load), otherwise use 768px threshold
+if screen_width is None or screen_width > 768:
+    view_mode = "💻 Desktop"
+else:
+    view_mode = "📱 Mobile"
+
+# For debugging or manual override, we can hide this or keep it disabled
+st.sidebar.markdown(f"*Auto-detected view: {view_mode}*")
 st.sidebar.markdown("---")
 st.sidebar.markdown("🛒 **[Open Supplier Site](https://bargainballoons.com)**")
 
