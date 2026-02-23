@@ -38,16 +38,16 @@ def save_settings(settings_data):
         json.dump(settings_data, f)
 
 def load_data():
-    """Loads inventory and handles migration for new Foil fields."""
+    """Loads inventory and handles migration for new fields (Foils, Usage, Barcodes, Open Bags)."""
     if not os.path.exists(DB_FILE):
         # Initial dummy data
         initial_data = [
             # Latex Examples
-            {"id": 1, "category": "latex", "brand": "Tuftex", "color": "Burnt Orange", "hex": "#CC5500", "5in": 2, "11in": 5, "17in": 1, "24in": 0, "32in": 0, "monthly_usage": {}},
-            {"id": 2, "category": "latex", "brand": "Sempertex", "color": "White Sand", "hex": "#E8E3D9", "5in": 10, "11in": 8, "17in": 4, "24in": 2, "32in": 1, "monthly_usage": {"2025-02": 5}},
+            {"id": 1, "category": "latex", "brand": "Tuftex", "color": "Burnt Orange", "hex": "#CC5500", "5in": {"full": 2, "open": 0}, "11in": {"full": 5, "open": 0}, "17in": {"full": 1, "open": 0}, "24in": {"full": 0, "open": 0}, "32in": {"full": 0, "open": 0}, "barcodes": {}, "monthly_usage": {}},
+            {"id": 2, "category": "latex", "brand": "Sempertex", "color": "White Sand", "hex": "#E8E3D9", "5in": {"full": 10, "open": 0}, "11in": {"full": 8, "open": 0}, "17in": {"full": 4, "open": 0}, "24in": {"full": 2, "open": 0}, "32in": {"full": 1, "open": 0}, "barcodes": {}, "monthly_usage": {"2025-02": 5}},
             # Foil Examples
-            {"id": 3, "category": "foil", "foil_type": "Number", "design": "1", "color": "Gold", "hex": "#D4AF37", "small": 2, "large": 4, "monthly_usage": {"2026-01": 1}},
-            {"id": 4, "category": "foil", "foil_type": "Shape", "design": "Dinosaur", "color": "Green", "hex": "#228B22", "small": 0, "large": 2, "monthly_usage": {}},
+            {"id": 3, "category": "foil", "foil_type": "Number", "design": "1", "color": "Gold", "hex": "#D4AF37", "small": {"full": 2, "open": 0}, "large": {"full": 4, "open": 0}, "barcodes": {}, "monthly_usage": {"2026-01": 1}},
+            {"id": 4, "category": "foil", "foil_type": "Shape", "design": "Dinosaur", "color": "Green", "hex": "#228B22", "small": {"full": 0, "open": 0}, "large": {"full": 2, "open": 0}, "barcodes": {}, "monthly_usage": {}},
         ]
         with open(DB_FILE, 'w') as f:
             json.dump(initial_data, f)
@@ -58,7 +58,7 @@ def load_data():
         except:
             return pd.DataFrame()
             
-    # --- MIGRATION: UPGRADE OLD DATA TO SUPPORT FOILS ---
+    # --- MIGRATION: UPGRADE OLD DATA TO SUPPORT FOILS, USAGE, BARCODES & OPEN BAGS ---
     if data and isinstance(data, list) and len(data) > 0:
         needs_save = False
         current_month_str = datetime.now().strftime("%Y-%m")
@@ -72,8 +72,8 @@ def load_data():
             if "foil_type" not in entry:
                 entry["foil_type"] = "" # Number, Letter, Shape
                 entry["design"] = ""    # "1", "A", "Star"
-                entry["small"] = 0      # 16 inch / Air
-                entry["large"] = 0      # 40 inch / Helium
+                entry["small"] = 0      # Will migrate to dict below
+                entry["large"] = 0      
                 needs_save = True
             
             # 3. Add 32in size if missing
@@ -90,6 +90,22 @@ def load_data():
                     entry["monthly_usage"][current_month_str] = usage_val
                 if "usage" in entry:
                     del entry["usage"]
+                    
+            # 5. Add barcodes dictionary mapping size -> list of barcodes
+            if "barcodes" not in entry:
+                needs_save = True
+                entry["barcodes"] = {}
+                
+            # 6. Migrate sizes from ints to dicts {"full": X, "open": Y}
+            sizes_to_check = LATEX_SIZES if entry["category"] == "latex" else ["small", "large"]
+            for size in sizes_to_check:
+                if size in entry and isinstance(entry[size], int):
+                    needs_save = True
+                    val = entry[size]
+                    entry[size] = {"full": val, "open": 0}
+                elif size not in entry:
+                    needs_save = True
+                    entry[size] = {"full": 0, "open": 0}
                 
         if needs_save:
             with open(DB_FILE, 'w') as f:
@@ -230,7 +246,7 @@ if not check_password():
 
 # Sidebar
 st.sidebar.title("🎈 PopStock")
-page = st.sidebar.radio("Go to", ["Inventory", "Scan Shipment", "Add Manually", "Analytics", "Settings"])
+page = st.sidebar.radio("Go to", ["Inventory", "Scanner Hub", "Scan Shipment", "Add Manually", "Analytics", "Settings"])
 st.sidebar.markdown("---")
 
 # Auto-detect screen width to set view mode
@@ -358,31 +374,47 @@ if page == "Inventory":
                     with c2:
                         cols = st.columns(len(LATEX_SIZES))
                         for i, size in enumerate(LATEX_SIZES):
-                            qty = row[size]
+                            qty_dict = row[size]
+                            full_qty = qty_dict.get('full', 0)
+                            open_qty = qty_dict.get('open', 0)
                             
                             thresholds = latex_thresholds[size]
-                            if qty <= thresholds["low"]:
+                            if full_qty <= thresholds["low"]:
                                 color_alert = "red"
-                            elif qty <= thresholds["medium"]:
+                            elif full_qty <= thresholds["medium"]:
                                 color_alert = "orange"
                             else:
                                 color_alert = "green"
 
                             cols[i].markdown(f"**{size}**")
-                            cols[i].markdown(f":{color_alert}[**{qty} bags**]")
+                            cols[i].markdown(f":{color_alert}[**{full_qty} Full**] | **{open_qty} Open**")
                             
-                            if cols[i].button("➖", key=f"d_l_sub_{row['id']}_{size}"):
-                                if qty > 0:
-                                    df.at[index, size] = qty - 1
+                            btn_full_c1, btn_full_c2 = cols[i].columns(2)
+                            if btn_full_c1.button("➖ Full", key=f"d_l_f_sub_{row['id']}_{size}", help="Remove a full bag"):
+                                if full_qty > 0:
+                                    df.at[index, size]['full'] = full_qty - 1
                                     current_month_str = datetime.now().strftime("%Y-%m")
                                     usage_dict = df.at[index, 'monthly_usage']
                                     usage_dict[current_month_str] = usage_dict.get(current_month_str, 0) + 1
                                     save_data(df)
                                     st.rerun()
-                            if cols[i].button("➕", key=f"d_l_add_{row['id']}_{size}"):
-                                df.at[index, size] = qty + 1
+                            if btn_full_c2.button("➕ Full", key=f"d_l_f_add_{row['id']}_{size}", help="Add a full bag"):
+                                df.at[index, size]['full'] = full_qty + 1
                                 save_data(df)
                                 st.rerun()
+                                
+                            btn_open_c1, btn_open_c2 = cols[i].columns(2)
+                            if btn_open_c1.button("➖ Open", key=f"d_l_o_sub_{row['id']}_{size}", help="Trash an empty open bag"):
+                                if open_qty > 0:
+                                    df.at[index, size]['open'] = open_qty - 1
+                                    save_data(df)
+                                    st.rerun()
+                            if btn_open_c2.button("➕ Open", key=f"d_l_o_add_{row['id']}_{size}", help="Open a full bag"):
+                                if full_qty > 0:
+                                    df.at[index, size]['full'] = full_qty - 1
+                                    df.at[index, size]['open'] = open_qty + 1
+                                    save_data(df)
+                                    st.rerun()
                     
                     with st.popover("⚙️ Edit / Delete"):
                         st.markdown(f"**Edit {row['brand']} - {row['color']}**")
@@ -448,28 +480,47 @@ if page == "Inventory":
                         # Always create 2 columns so an odd item out (like 32in) doesn't expand to full width
                         cols = st.columns(2)
                         for j, size in enumerate(chunk):
-                            qty = row[size]
+                            qty_dict = row[size]
+                            full_qty = qty_dict.get('full', 0)
+                            open_qty = qty_dict.get('open', 0)
+                            
                             thresholds = latex_thresholds[size]
                             
-                            indicator = "🔴" if qty <= thresholds["low"] else "🟠" if qty <= thresholds["medium"] else "🟢"
+                            indicator = "🔴" if full_qty <= thresholds["low"] else "🟠" if full_qty <= thresholds["medium"] else "🟢"
                                 
                             with cols[j]:
                                 st.markdown('<div class="mobile-grid-marker" style="display:none;"></div>', unsafe_allow_html=True)
-                                new_qty = st.number_input(
-                                    f"{indicator} {size}",
+                                new_full_qty = st.number_input(
+                                    f"{indicator} {size} (Full)",
                                     min_value=0,
-                                    value=int(qty),
+                                    value=int(full_qty),
                                     step=1,
-                                    key=f"m_qty_l_{row['id']}_{size}"
+                                    key=f"m_qty_l_full_{row['id']}_{size}"
                                 )
-                                if new_qty != qty:
-                                    if new_qty < qty:
+                                if new_full_qty != full_qty:
+                                    if new_full_qty < full_qty:
                                         current_month_str = datetime.now().strftime("%Y-%m")
                                         usage_dict = df.at[index, 'monthly_usage']
-                                        usage_dict[current_month_str] = usage_dict.get(current_month_str, 0) + (qty - new_qty)
-                                    df.at[index, size] = new_qty
+                                        usage_dict[current_month_str] = usage_dict.get(current_month_str, 0) + (full_qty - new_full_qty)
+                                    df.at[index, size]['full'] = new_full_qty
                                     save_data(df)
                                     st.rerun()
+                                
+                                # Open bags controller
+                                c_open_label, c_open_sub, c_open_qty, c_open_add = st.columns([1.5, 1, 1, 1])
+                                c_open_label.markdown("<div style='font-size: 0.8em; color: #888; text-align: right; padding-top: 5px;'>Open:</div>", unsafe_allow_html=True)
+                                if c_open_sub.button("➖", key=f"m_qty_l_open_sub_{row['id']}_{size}"):
+                                    if open_qty > 0:
+                                        df.at[index, size]['open'] = open_qty - 1
+                                        save_data(df)
+                                        st.rerun()
+                                c_open_qty.markdown(f"<div style='text-align: center; padding-top: 5px;'><b>{open_qty}</b></div>", unsafe_allow_html=True)
+                                if c_open_add.button("➕", key=f"m_qty_l_open_add_{row['id']}_{size}"):
+                                    if df.at[index, size]['full'] > 0:
+                                        df.at[index, size]['full'] -= 1
+                                        df.at[index, size]['open'] += 1
+                                        save_data(df)
+                                        st.rerun()
 
     # --- TAB 2: FOIL ---
     with tab_foil:
@@ -507,24 +558,39 @@ if page == "Inventory":
                         foil_sizes = [("small", "Small (16in/Air)"), ("large", "Large (40in/Helium)")]
                         
                         for i, (field, label) in enumerate(foil_sizes):
-                            qty = row[field]
-                            color_alert = "red" if qty == 0 else "green"
+                            qty_dict = row[field]
+                            full_qty = qty_dict.get('full', 0)
+                            open_qty = qty_dict.get('open', 0)
+                            color_alert = "red" if full_qty == 0 else "green"
                             cols[i].markdown(f"**{label}**")
-                            cols[i].markdown(f":{color_alert}[**{qty}**]")
+                            cols[i].markdown(f":{color_alert}[**{full_qty} Full**] | **{open_qty} Open**")
                             
-                            if cols[i].button("➖", key=f"d_f_sub_{row['id']}_{field}"):
-                                if qty > 0:
-                                    df.at[index, field] = qty - 1
-                                    # Update monthly usage
+                            btn_full_c1, btn_full_c2 = cols[i].columns(2)
+                            if btn_full_c1.button("➖ Full", key=f"d_f_f_sub_{row['id']}_{field}"):
+                                if full_qty > 0:
+                                    df.at[index, field]['full'] = full_qty - 1
                                     current_month_str = datetime.now().strftime("%Y-%m")
                                     usage_dict = df.at[index, 'monthly_usage']
                                     usage_dict[current_month_str] = usage_dict.get(current_month_str, 0) + 1
                                     save_data(df)
                                     st.rerun()
-                            if cols[i].button("➕", key=f"d_f_add_{row['id']}_{field}"):
-                                df.at[index, field] = qty + 1
+                            if btn_full_c2.button("➕ Full", key=f"d_f_f_add_{row['id']}_{field}"):
+                                df.at[index, field]['full'] = full_qty + 1
                                 save_data(df)
                                 st.rerun()
+                                
+                            btn_open_c1, btn_open_c2 = cols[i].columns(2)
+                            if btn_open_c1.button("➖ Open", key=f"d_f_o_sub_{row['id']}_{field}"):
+                                if open_qty > 0:
+                                    df.at[index, field]['open'] = open_qty - 1
+                                    save_data(df)
+                                    st.rerun()
+                            if btn_open_c2.button("➕ Open", key=f"d_f_o_add_{row['id']}_{field}"):
+                                if full_qty > 0:
+                                    df.at[index, field]['full'] = full_qty - 1
+                                    df.at[index, field]['open'] = open_qty + 1
+                                    save_data(df)
+                                    st.rerun()
                     
                     with st.popover("⚙️ Edit / Delete"):
                         st.markdown(f"**Edit {row['color']} - {row['design']}**")
@@ -600,26 +666,45 @@ if page == "Inventory":
                     foil_sizes = [("small", "Small (16in)"), ("large", "Large (40in)")]
                     cols = st.columns(2)
                     for j, (field, label) in enumerate(foil_sizes):
-                        qty = row[field]
-                        indicator = "🔴" if qty == 0 else "🟢"
+                        qty_dict = row[field]
+                        full_qty = qty_dict.get('full', 0)
+                        open_qty = qty_dict.get('open', 0)
+                        
+                        indicator = "🔴" if full_qty == 0 else "🟢"
                         
                         with cols[j]:
                             st.markdown('<div class="mobile-grid-marker" style="display:none;"></div>', unsafe_allow_html=True)
-                            new_qty = st.number_input(
-                                f"{indicator} {label}",
+                            new_full_qty = st.number_input(
+                                f"{indicator} {label} (Full)",
                                 min_value=0,
-                                value=int(qty),
+                                value=int(full_qty),
                                 step=1,
-                                key=f"m_qty_f_{row['id']}_{field}"
+                                key=f"m_qty_f_full_{row['id']}_{field}"
                             )
-                            if new_qty != qty:
-                                if new_qty < qty:
+                            if new_full_qty != full_qty:
+                                if new_full_qty < full_qty:
                                     current_month_str = datetime.now().strftime("%Y-%m")
                                     usage_dict = df.at[index, 'monthly_usage']
-                                    usage_dict[current_month_str] = usage_dict.get(current_month_str, 0) + (qty - new_qty)
-                                df.at[index, field] = new_qty
+                                    usage_dict[current_month_str] = usage_dict.get(current_month_str, 0) + (full_qty - new_full_qty)
+                                df.at[index, field]['full'] = new_full_qty
                                 save_data(df)
                                 st.rerun()
+                                
+                            # Open bags controller
+                            c_open_label, c_open_sub, c_open_qty, c_open_add = st.columns([1.5, 1, 1, 1])
+                            c_open_label.markdown("<div style='font-size: 0.8em; color: #888; text-align: right; padding-top: 5px;'>Open:</div>", unsafe_allow_html=True)
+                            if c_open_sub.button("➖", key=f"m_qty_f_open_sub_{row['id']}_{field}"):
+                                if open_qty > 0:
+                                    df.at[index, field]['open'] = open_qty - 1
+                                    save_data(df)
+                                    st.rerun()
+                            c_open_qty.markdown(f"<div style='text-align: center; padding-top: 5px;'><b>{open_qty}</b></div>", unsafe_allow_html=True)
+                            if c_open_add.button("➕", key=f"m_qty_f_open_add_{row['id']}_{field}"):
+                                if df.at[index, field]['full'] > 0:
+                                    df.at[index, field]['full'] -= 1
+                                    df.at[index, field]['open'] += 1
+                                    save_data(df)
+                                    st.rerun()
 
 # --- PAGE: ADD MANUALLY ---
 elif page == "Add Manually":
@@ -659,8 +744,9 @@ elif page == "Add Manually":
                 "hex": hex_code,
                 "foil_type": foil_type,
                 "design": design,
-                "5in": 0, "11in": 0, "17in": 0, "24in": 0, "32in": 0, # Latex fields
-                "small": 0, "large": 0, # Foil fields
+                "5in": {"full": 0, "open": 0}, "11in": {"full": 0, "open": 0}, "17in": {"full": 0, "open": 0}, "24in": {"full": 0, "open": 0}, "32in": {"full": 0, "open": 0}, # Latex fields
+                "small": {"full": 0, "open": 0}, "large": {"full": 0, "open": 0}, # Foil fields
+                "barcodes": {},
                 "monthly_usage": {}
             }
             df = pd.concat([df, pd.DataFrame([new_row])], ignore_index=True)
@@ -763,6 +849,200 @@ elif page == "Settings":
         save_settings(updated_thresholds)
         st.success("Settings saved successfully!")
         st.rerun()
+
+# --- PAGE: SCANNER HUB ---
+elif page == "Scanner Hub":
+    st.title("🎯 Scanner Hub")
+    
+    st.markdown("""
+    <style>
+    /* Make the radio buttons huge for easy tapping */
+    div.row-widget.stRadio > div{
+        flex-direction:row;
+        align-items: stretch;
+    }
+    div.row-widget.stRadio > div > label {
+        padding: 20px !important;
+        background-color: #f0f2f6;
+        border-radius: 10px;
+        margin-right: 10px;
+        text-align: center;
+        flex: 1;
+        cursor: pointer;
+    }
+    div.row-widget.stRadio > div > label[data-checked="true"] {
+        background-color: #4CAF50;
+        color: white;
+    }
+    /* Hide the actual radio circle */
+    div.row-widget.stRadio > div > label > div:first-child {
+        display: none;
+    }
+    </style>
+    """, unsafe_allow_html=True)
+    
+    # Initialize session state for manual link
+    if "unknown_barcode" not in st.session_state:
+        st.session_state.unknown_barcode = None
+
+    # Scanner Modes
+    mode = st.radio(
+        "Select Action", 
+        ["🔵 RECEIVING\n(Add Full)", "🟡 OPENING\n(Full ➔ Open)", "🔴 TRASHING\n(Use Open)"],
+        label_visibility="collapsed"
+    )
+    
+    st.divider()
+
+    # If we have an unknown barcode, show the linking UI
+    if st.session_state.unknown_barcode:
+        st.warning(f"Barcode **{st.session_state.unknown_barcode}** not recognized!")
+        st.write("Please link this barcode to an existing item:")
+        
+        with st.form("link_barcode_form"):
+            # Create a selection list of all items and sizes
+            item_options = []
+            for index, row in df.iterrows():
+                label_base = f"{row['brand']} - {row['color']}" if row['category'] == 'latex' else f"{row['color']} {row['design']} ({row['foil_type']})"
+                sizes = LATEX_SIZES if row['category'] == 'latex' else ["small", "large"]
+                for size in sizes:
+                    item_options.append({"label": f"{label_base} - {size}", "id": row['id'], "size": size})
+            
+            selected_item_label = st.selectbox("Select Item", [opt["label"] for opt in item_options])
+            
+            c1, c2 = st.columns(2)
+            with c1:
+                if st.form_submit_button("🔗 Link & Process", type="primary", use_container_width=True):
+                    # Find the selected item details
+                    selected_opt = next(opt for opt in item_options if opt["label"] == selected_item_label)
+                    item_id = selected_opt["id"]
+                    item_size = selected_opt["size"]
+                    
+                    # Update database
+                    idx = df.index[df['id'] == item_id][0]
+                    
+                    # Ensure barcodes dict exists and the size list exists
+                    if 'barcodes' not in df.at[idx]:
+                        df.at[idx, 'barcodes'] = {}
+                    if not isinstance(df.at[idx, 'barcodes'], dict):
+                        df.at[idx, 'barcodes'] = {}
+                        
+                    barcodes_dict = df.at[idx, 'barcodes']
+                    if item_size not in barcodes_dict:
+                        barcodes_dict[item_size] = []
+                    
+                    barcodes_dict[item_size].append(st.session_state.unknown_barcode)
+                    df.at[idx, 'barcodes'] = barcodes_dict
+                    
+                    # Also process the scan based on current mode!
+                    qty_dict = df.at[idx, item_size]
+                    if mode.startswith("🔵"): # Receiving
+                        qty_dict['full'] += 1
+                        action_msg = f"Added 1 Full bag to {selected_item_label}"
+                    elif mode.startswith("🟡"): # Opening
+                        if qty_dict['full'] > 0:
+                            qty_dict['full'] -= 1
+                            qty_dict['open'] += 1
+                            action_msg = f"Opened 1 bag of {selected_item_label}"
+                        else:
+                            action_msg = f"Cannot open: No full bags of {selected_item_label} in stock."
+                    else: # Trashing
+                        if qty_dict['open'] > 0:
+                            qty_dict['open'] -= 1
+                            action_msg = f"Trashed 1 open bag of {selected_item_label}"
+                        elif qty_dict['full'] > 0:
+                            qty_dict['full'] -= 1
+                            action_msg = f"Trashed 1 full bag of {selected_item_label}"
+                        else:
+                            action_msg = f"Cannot trash: No stock of {selected_item_label}."
+                            
+                        # Log usage
+                        current_month_str = datetime.now().strftime("%Y-%m")
+                        usage_dict = df.at[idx, 'monthly_usage']
+                        usage_dict[current_month_str] = usage_dict.get(current_month_str, 0) + 1
+                        df.at[idx, 'monthly_usage'] = usage_dict
+                    
+                    df.at[idx, item_size] = qty_dict
+                    save_data(df)
+                    
+                    st.session_state.unknown_barcode = None
+                    st.toast(action_msg)
+                    st.rerun()
+            with c2:
+                if st.form_submit_button("Cancel", use_container_width=True):
+                    st.session_state.unknown_barcode = None
+                    st.rerun()
+
+    else:
+        # Standard Scanning UI
+        def handle_scan():
+            scanned_code = st.session_state.barcode_input.strip()
+            if not scanned_code:
+                return
+                
+            # Search for barcode
+            found = False
+            for index, row in df.iterrows():
+                barcodes_dict = row.get('barcodes', {})
+                if not isinstance(barcodes_dict, dict): continue
+                
+                for size, code_list in barcodes_dict.items():
+                    if scanned_code in code_list:
+                        # FOUND IT!
+                        found = True
+                        label_base = f"{row['brand']} - {row['color']}" if row['category'] == 'latex' else f"{row['color']} {row['design']} ({row['foil_type']})"
+                        item_label = f"{label_base} - {size}"
+                        
+                        qty_dict = df.at[index, size]
+                        
+                        if mode.startswith("🔵"): # Receiving
+                            qty_dict['full'] += 1
+                            action_msg = f"✅ Added 1 Full bag to {item_label}"
+                        elif mode.startswith("🟡"): # Opening
+                            if qty_dict['full'] > 0:
+                                qty_dict['full'] -= 1
+                                qty_dict['open'] += 1
+                                action_msg = f"✅ Opened 1 bag of {item_label}"
+                            else:
+                                action_msg = f"❌ Cannot open: No full bags of {item_label} in stock."
+                        else: # Trashing
+                            if qty_dict['open'] > 0:
+                                qty_dict['open'] -= 1
+                                action_msg = f"🗑️ Trashed 1 open bag of {item_label}"
+                            elif qty_dict['full'] > 0:
+                                qty_dict['full'] -= 1
+                                action_msg = f"🗑️ Trashed 1 full bag of {item_label}"
+                            else:
+                                action_msg = f"❌ Cannot trash: No stock of {item_label}."
+                                
+                            # Log usage if trashed
+                            if "🗑️" in action_msg:
+                                current_month_str = datetime.now().strftime("%Y-%m")
+                                usage_dict = df.at[index, 'monthly_usage']
+                                usage_dict[current_month_str] = usage_dict.get(current_month_str, 0) + 1
+                                df.at[index, 'monthly_usage'] = usage_dict
+
+                        df.at[index, size] = qty_dict
+                        save_data(df)
+                        st.toast(action_msg)
+                        break
+                if found:
+                    break
+            
+            if not found:
+                st.session_state.unknown_barcode = scanned_code
+                
+            # Clear input for next scan
+            st.session_state.barcode_input = ""
+
+        # The actual input field
+        st.text_input(
+            "Scan Barcode Here", 
+            key="barcode_input", 
+            on_change=handle_scan,
+            help="Ensure this box is selected before pulling the scanner trigger."
+        )
+        st.info("💡 Keep the text box above selected. When the scanner beeps, it will automatically process and clear itself for the next scan.")
 
 # --- PAGE: SCAN SHIPMENT ---
 elif page == "Scan Shipment":
