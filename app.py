@@ -299,12 +299,13 @@ if page == "Inventory":
             flex-direction: row !important;
             flex-wrap: nowrap !important;
             width: 100% !important;
+            gap: 10px !important;
         }
-        div[data-testid="stHorizontalBlock"]:has(.mobile-grid-marker) > div[data-testid="column"] {
-            width: 50% !important;
-            flex: 1 1 50% !important;
+        div[data-testid="stHorizontalBlock"]:has(.mobile-grid-marker) > div[data-testid="stColumn"] {
+            width: calc(50% - 5px) !important;
+            flex: 1 1 calc(50% - 5px) !important;
             min-width: 0 !important;
-            padding: 0 5px !important;
+            padding: 0 !important;
         }
         /* Make number inputs more compact */
         input[type="number"] {
