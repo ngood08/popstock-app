@@ -190,6 +190,26 @@ def check_password():
                 label_visibility="collapsed",
                 placeholder="••••"
             )
+            
+            import streamlit.components.v1 as components
+            components.html(
+                """
+                <script>
+                // We use an interval to keep checking until Streamlit renders the input field
+                const interval = setInterval(() => {
+                    const pinInput = window.parent.document.querySelector('div[data-baseweb="input"] input[type="password"]');
+                    if (pinInput) {
+                        pinInput.setAttribute('inputmode', 'numeric');
+                        pinInput.setAttribute('pattern', '[0-9]*');
+                        clearInterval(interval);
+                    }
+                }, 100);
+                </script>
+                """,
+                height=0,
+                width=0
+            )
+            
             if show_error:
                 st.error("😕 PIN incorrect")
 
