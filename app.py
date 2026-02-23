@@ -425,7 +425,8 @@ if page == "Inventory":
                     # Sizes grid mobile
                     for i in range(0, len(LATEX_SIZES), 2):
                         chunk = LATEX_SIZES[i:i+2]
-                        cols = st.columns(len(chunk))
+                        # Always create 2 columns so an odd item out (like 32in) doesn't expand to full width
+                        cols = st.columns(2)
                         for j, size in enumerate(chunk):
                             qty = row[size]
                             thresholds = latex_thresholds[size]
