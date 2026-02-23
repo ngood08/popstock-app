@@ -298,12 +298,13 @@ if page == "Inventory":
             display: flex !important;
             flex-direction: row !important;
             flex-wrap: nowrap !important;
-            gap: 1rem !important;
+            width: 100% !important;
         }
         div[data-testid="stHorizontalBlock"]:has(.mobile-grid-marker) > div[data-testid="column"] {
             width: 50% !important;
             flex: 1 1 50% !important;
             min-width: 0 !important;
+            padding: 0 5px !important;
         }
         /* Make number inputs more compact */
         input[type="number"] {
