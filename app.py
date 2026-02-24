@@ -520,12 +520,10 @@ if page == "Inventory":
                                         if full_qty > 0:
                                             df.at[index, size]['full'] = full_qty - 1
                                             df.at[index, size]['open'] = new_open_qty
-                                            st.session_state[f"m_qty_l_full_{row['id']}_{size}"] = full_qty - 1
                                             save_data(df)
                                             st.rerun()
                                         else:
                                             # They tried to open a bag but none are full. Reject the change.
-                                            st.session_state[f"m_qty_l_open_{row['id']}_{size}"] = open_qty
                                             st.toast(f"No full bags of {size} to open!")
                                             st.rerun()
                                     else:
@@ -715,11 +713,9 @@ if page == "Inventory":
                                     if full_qty > 0:
                                         df.at[index, field]['full'] = full_qty - 1
                                         df.at[index, field]['open'] = new_open_qty
-                                        st.session_state[f"m_qty_f_full_{row['id']}_{field}"] = full_qty - 1
                                         save_data(df)
                                         st.rerun()
                                     else:
-                                        st.session_state[f"m_qty_f_open_{row['id']}_{field}"] = open_qty
                                         st.toast(f"No full bags of {label} to open!")
                                         st.rerun()
                                 else:
