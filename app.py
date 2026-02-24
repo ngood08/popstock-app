@@ -266,6 +266,10 @@ st.sidebar.markdown("🛒 **[Open Supplier Site](https://bargainballoons.com)**"
 latex_thresholds = load_settings()
 df = load_data()
 
+# Initialize a render key counter for mobile inputs
+if "render_key" not in st.session_state:
+    st.session_state.render_key = 0
+
 # --- PAGE: INVENTORY ---
 if page == "Inventory":
     st.title("Current Inventory")
@@ -495,7 +499,7 @@ if page == "Inventory":
                                     min_value=0,
                                     value=int(full_qty),
                                     step=1,
-                                    key=f"m_qty_l_full_{row['id']}_{size}"
+                                    key=f"m_qty_l_full_{row['id']}_{size}_{st.session_state.render_key}"
                                 )
                                 if new_full_qty != full_qty:
                                     if new_full_qty < full_qty:
@@ -504,6 +508,7 @@ if page == "Inventory":
                                         usage_dict[current_month_str] = usage_dict.get(current_month_str, 0) + (full_qty - new_full_qty)
                                     df.at[index, size]['full'] = new_full_qty
                                     save_data(df)
+                                    st.session_state.render_key += 1
                                     st.rerun()
                                 
                                 # Open bags controller
@@ -512,7 +517,7 @@ if page == "Inventory":
                                     min_value=0,
                                     value=int(open_qty),
                                     step=1,
-                                    key=f"m_qty_l_open_{row['id']}_{size}"
+                                    key=f"m_qty_l_open_{row['id']}_{size}_{st.session_state.render_key}"
                                 )
                                 if new_open_qty != open_qty:
                                     if new_open_qty > open_qty:
@@ -521,15 +526,18 @@ if page == "Inventory":
                                             df.at[index, size]['full'] = full_qty - 1
                                             df.at[index, size]['open'] = new_open_qty
                                             save_data(df)
+                                            st.session_state.render_key += 1
                                             st.rerun()
                                         else:
                                             # They tried to open a bag but none are full. Reject the change.
                                             st.toast(f"No full bags of {size} to open!")
+                                            st.session_state.render_key += 1
                                             st.rerun()
                                     else:
                                         # They are just removing/trashing an open bag.
                                         df.at[index, size]['open'] = new_open_qty
                                         save_data(df)
+                                        st.session_state.render_key += 1
                                         st.rerun()
 
     # --- TAB 2: FOIL ---
@@ -689,7 +697,7 @@ if page == "Inventory":
                                 min_value=0,
                                 value=int(full_qty),
                                 step=1,
-                                key=f"m_qty_f_full_{row['id']}_{field}"
+                                key=f"m_qty_f_full_{row['id']}_{field}_{st.session_state.render_key}"
                             )
                             if new_full_qty != full_qty:
                                 if new_full_qty < full_qty:
@@ -698,6 +706,7 @@ if page == "Inventory":
                                     usage_dict[current_month_str] = usage_dict.get(current_month_str, 0) + (full_qty - new_full_qty)
                                 df.at[index, field]['full'] = new_full_qty
                                 save_data(df)
+                                st.session_state.render_key += 1
                                 st.rerun()
                                 
                             # Open bags controller
@@ -706,7 +715,7 @@ if page == "Inventory":
                                 min_value=0,
                                 value=int(open_qty),
                                 step=1,
-                                key=f"m_qty_f_open_{row['id']}_{field}"
+                                key=f"m_qty_f_open_{row['id']}_{field}_{st.session_state.render_key}"
                             )
                             if new_open_qty != open_qty:
                                 if new_open_qty > open_qty:
@@ -714,13 +723,16 @@ if page == "Inventory":
                                         df.at[index, field]['full'] = full_qty - 1
                                         df.at[index, field]['open'] = new_open_qty
                                         save_data(df)
+                                        st.session_state.render_key += 1
                                         st.rerun()
                                     else:
                                         st.toast(f"No full bags of {label} to open!")
+                                        st.session_state.render_key += 1
                                         st.rerun()
                                 else:
                                     df.at[index, field]['open'] = new_open_qty
                                     save_data(df)
+                                    st.session_state.render_key += 1
                                     st.rerun()
 
 # --- PAGE: ADD MANUALLY ---
