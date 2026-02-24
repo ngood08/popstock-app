@@ -330,19 +330,29 @@ if page == "Inventory":
             margin: 0 !important;
             padding: 0 !important;
         }
-        /* Safely force size columns to stay side-by-side on mobile without stacking */
-        div[data-testid="stHorizontalBlock"]:has(.mobile-grid-marker) {
+        /* Safely force table row columns to stay side-by-side on mobile without stacking */
+        div[data-testid="stHorizontalBlock"]:has(.mobile-table-row) {
             display: flex !important;
             flex-direction: row !important;
             flex-wrap: nowrap !important;
+            align-items: center !important;
             width: 100% !important;
-            gap: 10px !important;
+            gap: 5px !important;
         }
-        div[data-testid="stHorizontalBlock"]:has(.mobile-grid-marker) > div[data-testid="stColumn"] {
-            width: calc(50% - 5px) !important;
-            flex: 1 1 calc(50% - 5px) !important;
+        div[data-testid="stHorizontalBlock"]:has(.mobile-table-row) > div[data-testid="stColumn"]:nth-child(1) {
+            flex: 1.5 1 0% !important;
+            width: auto !important;
             min-width: 0 !important;
-            padding: 0 !important;
+        }
+        div[data-testid="stHorizontalBlock"]:has(.mobile-table-row) > div[data-testid="stColumn"]:nth-child(2) {
+            flex: 2 1 0% !important;
+            width: auto !important;
+            min-width: 0 !important;
+        }
+        div[data-testid="stHorizontalBlock"]:has(.mobile-table-row) > div[data-testid="stColumn"]:nth-child(3) {
+            flex: 2 1 0% !important;
+            width: auto !important;
+            min-width: 0 !important;
         }
         /* Make number inputs more compact */
         input[type="number"] {
@@ -474,70 +484,79 @@ if page == "Inventory":
 
                     st.markdown("<hr style='margin: 10px 0; border: none; border-top: 1px solid #eee;'>", unsafe_allow_html=True)
 
+                    st.markdown("""
+                    <div style="display: flex; text-align: center; font-size: 0.8em; color: #888; margin-bottom: 5px;">
+                        <div style="flex: 1.5;"></div>
+                        <div style="flex: 2;">Full Bags</div>
+                        <div style="flex: 2;">Open</div>
+                    </div>
+                    """, unsafe_allow_html=True)
+                    
                     # Sizes grid mobile
-                    for i in range(0, len(LATEX_SIZES), 2):
-                        chunk = LATEX_SIZES[i:i+2]
-                        # Always create 2 columns so an odd item out (like 32in) doesn't expand to full width
-                        cols = st.columns(2)
-                        for j, size in enumerate(chunk):
-                            qty_dict = row[size]
-                            full_qty = qty_dict.get('full', 0)
-                            open_qty = qty_dict.get('open', 0)
+                    for size in LATEX_SIZES:
+                        qty_dict = row[size]
+                        full_qty = qty_dict.get('full', 0)
+                        open_qty = qty_dict.get('open', 0)
+                        
+                        thresholds = latex_thresholds[size]
+                        
+                        indicator = "🔴" if full_qty <= thresholds["low"] else "🟠" if full_qty <= thresholds["medium"] else "🟢"
+                        
+                        c_lbl, c_full, c_open = st.columns([1.5, 2, 2])
+                        with c_lbl:
+                            st.markdown('<div class="mobile-table-row" style="display:none;"></div>', unsafe_allow_html=True)
+                            st.markdown(f"{indicator} **{size}**")
                             
-                            thresholds = latex_thresholds[size]
+                        full_key = f"m_qty_l_full_{row['id']}_{size}"
+                        open_key = f"m_qty_l_open_{row['id']}_{size}"
+                        
+                        def on_l_full_change(idx=index, s=size, fk=full_key):
+                            new_f = st.session_state[fk]
+                            old_f = df.at[idx, s]['full']
+                            if new_f < old_f:
+                                current_month_str = datetime.now().strftime("%Y-%m")
+                                usage_dict = df.at[idx, 'monthly_usage']
+                                usage_dict[current_month_str] = usage_dict.get(current_month_str, 0) + (old_f - new_f)
+                            df.at[idx, s]['full'] = new_f
+                            save_data(df)
                             
-                            indicator = "🔴" if full_qty <= thresholds["low"] else "🟠" if full_qty <= thresholds["medium"] else "🟢"
-                                
-                            with cols[j]:
-                                st.markdown('<div class="mobile-grid-marker" style="display:none;"></div>', unsafe_allow_html=True)
-                                
-                                full_key = f"m_qty_l_full_{row['id']}_{size}"
-                                open_key = f"m_qty_l_open_{row['id']}_{size}"
-                                
-                                def on_l_full_change(idx=index, s=size, fk=full_key):
-                                    new_f = st.session_state[fk]
-                                    old_f = df.at[idx, s]['full']
-                                    if new_f < old_f:
-                                        current_month_str = datetime.now().strftime("%Y-%m")
-                                        usage_dict = df.at[idx, 'monthly_usage']
-                                        usage_dict[current_month_str] = usage_dict.get(current_month_str, 0) + (old_f - new_f)
-                                    df.at[idx, s]['full'] = new_f
+                        def on_l_open_change(idx=index, s=size, fk=full_key, ok=open_key):
+                            new_o = st.session_state[ok]
+                            old_o = df.at[idx, s]['open']
+                            old_f = df.at[idx, s]['full']
+                            if new_o > old_o:
+                                if old_f > 0:
+                                    df.at[idx, s]['full'] = old_f - 1
+                                    df.at[idx, s]['open'] = new_o
+                                    st.session_state[fk] = old_f - 1
                                     save_data(df)
-                                    
-                                def on_l_open_change(idx=index, s=size, fk=full_key, ok=open_key):
-                                    new_o = st.session_state[ok]
-                                    old_o = df.at[idx, s]['open']
-                                    old_f = df.at[idx, s]['full']
-                                    if new_o > old_o:
-                                        if old_f > 0:
-                                            df.at[idx, s]['full'] = old_f - 1
-                                            df.at[idx, s]['open'] = new_o
-                                            st.session_state[fk] = old_f - 1
-                                            save_data(df)
-                                        else:
-                                            st.session_state[ok] = old_o
-                                            st.toast(f"No full bags of {s} to open!")
-                                    else:
-                                        df.at[idx, s]['open'] = new_o
-                                        save_data(df)
+                                else:
+                                    st.session_state[ok] = old_o
+                                    st.toast(f"No full bags of {s} to open!")
+                            else:
+                                df.at[idx, s]['open'] = new_o
+                                save_data(df)
 
-                                st.number_input(
-                                    f"{indicator} {size} (Full)",
-                                    min_value=0,
-                                    value=int(full_qty),
-                                    step=1,
-                                    key=full_key,
-                                    on_change=on_l_full_change
-                                )
-                                
-                                st.number_input(
-                                    f"{size} (Open)",
-                                    min_value=0,
-                                    value=int(open_qty),
-                                    step=1,
-                                    key=open_key,
-                                    on_change=on_l_open_change
-                                )
+                        with c_full:
+                            st.number_input(
+                                "f",
+                                min_value=0,
+                                value=int(full_qty),
+                                step=1,
+                                key=full_key,
+                                on_change=on_l_full_change,
+                                label_visibility="collapsed"
+                            )
+                        with c_open:
+                            st.number_input(
+                                "o",
+                                min_value=0,
+                                value=int(open_qty),
+                                step=1,
+                                key=open_key,
+                                on_change=on_l_open_change,
+                                label_visibility="collapsed"
+                            )
 
     # --- TAB 2: FOIL ---
     with tab_foil:
@@ -679,66 +698,77 @@ if page == "Inventory":
                     
                     st.markdown("<hr style='margin: 10px 0; border: none; border-top: 1px solid #eee;'>", unsafe_allow_html=True)
                     
-                    # FOIL SIZES grid mobile
+                    st.markdown("""
+                    <div style="display: flex; text-align: center; font-size: 0.8em; color: #888; margin-bottom: 5px;">
+                        <div style="flex: 1.5;"></div>
+                        <div style="flex: 2;">Full Bags</div>
+                        <div style="flex: 2;">Open</div>
+                    </div>
+                    """, unsafe_allow_html=True)
+                    
+                    # FOIL SIZES table mobile
                     foil_sizes = [("small", "Small (16in)"), ("large", "Large (40in)")]
-                    cols = st.columns(2)
-                    for j, (field, label) in enumerate(foil_sizes):
+                    for field, label in foil_sizes:
                         qty_dict = row[field]
                         full_qty = qty_dict.get('full', 0)
                         open_qty = qty_dict.get('open', 0)
                         
                         indicator = "🔴" if full_qty == 0 else "🟢"
                         
-                        with cols[j]:
-                            st.markdown('<div class="mobile-grid-marker" style="display:none;"></div>', unsafe_allow_html=True)
+                        c_lbl, c_full, c_open = st.columns([1.5, 2, 2])
+                        with c_lbl:
+                            st.markdown('<div class="mobile-table-row" style="display:none;"></div>', unsafe_allow_html=True)
+                            st.markdown(f"{indicator} **{label}**")
                             
-                            full_key = f"m_qty_f_full_{row['id']}_{field}"
-                            open_key = f"m_qty_f_open_{row['id']}_{field}"
+                        full_key = f"m_qty_f_full_{row['id']}_{field}"
+                        open_key = f"m_qty_f_open_{row['id']}_{field}"
+                        
+                        def on_f_full_change(idx=index, fld=field, fk=full_key):
+                            new_f = st.session_state[fk]
+                            old_f = df.at[idx, fld]['full']
+                            if new_f < old_f:
+                                current_month_str = datetime.now().strftime("%Y-%m")
+                                usage_dict = df.at[idx, 'monthly_usage']
+                                usage_dict[current_month_str] = usage_dict.get(current_month_str, 0) + (old_f - new_f)
+                            df.at[idx, fld]['full'] = new_f
+                            save_data(df)
                             
-                            def on_f_full_change(idx=index, fld=field, fk=full_key):
-                                new_f = st.session_state[fk]
-                                old_f = df.at[idx, fld]['full']
-                                if new_f < old_f:
-                                    current_month_str = datetime.now().strftime("%Y-%m")
-                                    usage_dict = df.at[idx, 'monthly_usage']
-                                    usage_dict[current_month_str] = usage_dict.get(current_month_str, 0) + (old_f - new_f)
-                                df.at[idx, fld]['full'] = new_f
-                                save_data(df)
-                                
-                            def on_f_open_change(idx=index, fld=field, fk=full_key, ok=open_key, lbl=label):
-                                new_o = st.session_state[ok]
-                                old_o = df.at[idx, fld]['open']
-                                old_f = df.at[idx, fld]['full']
-                                if new_o > old_o:
-                                    if old_f > 0:
-                                        df.at[idx, fld]['full'] = old_f - 1
-                                        df.at[idx, fld]['open'] = new_o
-                                        st.session_state[fk] = old_f - 1
-                                        save_data(df)
-                                    else:
-                                        st.session_state[ok] = old_o
-                                        st.toast(f"No full bags of {lbl} to open!")
-                                else:
+                        def on_f_open_change(idx=index, fld=field, fk=full_key, ok=open_key, lbl=label):
+                            new_o = st.session_state[ok]
+                            old_o = df.at[idx, fld]['open']
+                            old_f = df.at[idx, fld]['full']
+                            if new_o > old_o:
+                                if old_f > 0:
+                                    df.at[idx, fld]['full'] = old_f - 1
                                     df.at[idx, fld]['open'] = new_o
+                                    st.session_state[fk] = old_f - 1
                                     save_data(df)
+                                else:
+                                    st.session_state[ok] = old_o
+                                    st.toast(f"No full bags of {lbl} to open!")
+                            else:
+                                df.at[idx, fld]['open'] = new_o
+                                save_data(df)
 
+                        with c_full:
                             st.number_input(
-                                f"{indicator} {label} (Full)",
+                                "f",
                                 min_value=0,
                                 value=int(full_qty),
                                 step=1,
                                 key=full_key,
-                                on_change=on_f_full_change
+                                on_change=on_f_full_change,
+                                label_visibility="collapsed"
                             )
-                                
-                            # Open bags controller
+                        with c_open:
                             st.number_input(
-                                f"{label} (Open)",
+                                "o",
                                 min_value=0,
                                 value=int(open_qty),
                                 step=1,
                                 key=open_key,
-                                on_change=on_f_open_change
+                                on_change=on_f_open_change,
+                                label_visibility="collapsed"
                             )
 
 # --- PAGE: ADD MANUALLY ---
