@@ -507,18 +507,28 @@ if page == "Inventory":
                                     st.rerun()
                                 
                                 # Open bags controller
-                                c_open_label, c_open_sub, c_open_qty, c_open_add = st.columns([1.5, 1, 1, 1])
-                                c_open_label.markdown("<div style='font-size: 0.8em; color: #888; text-align: right; padding-top: 5px;'>Open:</div>", unsafe_allow_html=True)
-                                if c_open_sub.button("➖", key=f"m_qty_l_open_sub_{row['id']}_{size}"):
-                                    if open_qty > 0:
-                                        df.at[index, size]['open'] = open_qty - 1
-                                        save_data(df)
-                                        st.rerun()
-                                c_open_qty.markdown(f"<div style='text-align: center; padding-top: 5px;'><b>{open_qty}</b></div>", unsafe_allow_html=True)
-                                if c_open_add.button("➕", key=f"m_qty_l_open_add_{row['id']}_{size}"):
-                                    if df.at[index, size]['full'] > 0:
-                                        df.at[index, size]['full'] -= 1
-                                        df.at[index, size]['open'] += 1
+                                new_open_qty = st.number_input(
+                                    f"🟡 {size} (Open)",
+                                    min_value=0,
+                                    value=int(open_qty),
+                                    step=1,
+                                    key=f"m_qty_l_open_{row['id']}_{size}"
+                                )
+                                if new_open_qty != open_qty:
+                                    if new_open_qty > open_qty:
+                                        # They are opening a bag. Subtract from full.
+                                        if full_qty > 0:
+                                            df.at[index, size]['full'] = full_qty - 1
+                                            df.at[index, size]['open'] = new_open_qty
+                                            save_data(df)
+                                            st.rerun()
+                                        else:
+                                            # They tried to open a bag but none are full. Reject the change.
+                                            st.toast(f"No full bags of {size} to open!")
+                                            st.rerun()
+                                    else:
+                                        # They are just removing/trashing an open bag.
+                                        df.at[index, size]['open'] = new_open_qty
                                         save_data(df)
                                         st.rerun()
 
@@ -691,18 +701,25 @@ if page == "Inventory":
                                 st.rerun()
                                 
                             # Open bags controller
-                            c_open_label, c_open_sub, c_open_qty, c_open_add = st.columns([1.5, 1, 1, 1])
-                            c_open_label.markdown("<div style='font-size: 0.8em; color: #888; text-align: right; padding-top: 5px;'>Open:</div>", unsafe_allow_html=True)
-                            if c_open_sub.button("➖", key=f"m_qty_f_open_sub_{row['id']}_{field}"):
-                                if open_qty > 0:
-                                    df.at[index, field]['open'] = open_qty - 1
-                                    save_data(df)
-                                    st.rerun()
-                            c_open_qty.markdown(f"<div style='text-align: center; padding-top: 5px;'><b>{open_qty}</b></div>", unsafe_allow_html=True)
-                            if c_open_add.button("➕", key=f"m_qty_f_open_add_{row['id']}_{field}"):
-                                if df.at[index, field]['full'] > 0:
-                                    df.at[index, field]['full'] -= 1
-                                    df.at[index, field]['open'] += 1
+                            new_open_qty = st.number_input(
+                                f"🟡 {label} (Open)",
+                                min_value=0,
+                                value=int(open_qty),
+                                step=1,
+                                key=f"m_qty_f_open_{row['id']}_{field}"
+                            )
+                            if new_open_qty != open_qty:
+                                if new_open_qty > open_qty:
+                                    if full_qty > 0:
+                                        df.at[index, field]['full'] = full_qty - 1
+                                        df.at[index, field]['open'] = new_open_qty
+                                        save_data(df)
+                                        st.rerun()
+                                    else:
+                                        st.toast(f"No full bags of {label} to open!")
+                                        st.rerun()
+                                else:
+                                    df.at[index, field]['open'] = new_open_qty
                                     save_data(df)
                                     st.rerun()
 
