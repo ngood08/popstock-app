@@ -266,10 +266,6 @@ st.sidebar.markdown("🛒 **[Open Supplier Site](https://bargainballoons.com)**"
 latex_thresholds = load_settings()
 df = load_data()
 
-# Initialize a render key counter for mobile inputs
-if "render_key" not in st.session_state:
-    st.session_state.render_key = 0
-
 # --- PAGE: INVENTORY ---
 if page == "Inventory":
     st.title("Current Inventory")
@@ -494,51 +490,54 @@ if page == "Inventory":
                                 
                             with cols[j]:
                                 st.markdown('<div class="mobile-grid-marker" style="display:none;"></div>', unsafe_allow_html=True)
-                                new_full_qty = st.number_input(
+                                
+                                full_key = f"m_qty_l_full_{row['id']}_{size}"
+                                open_key = f"m_qty_l_open_{row['id']}_{size}"
+                                
+                                def on_l_full_change(idx=index, s=size, fk=full_key):
+                                    new_f = st.session_state[fk]
+                                    old_f = df.at[idx, s]['full']
+                                    if new_f < old_f:
+                                        current_month_str = datetime.now().strftime("%Y-%m")
+                                        usage_dict = df.at[idx, 'monthly_usage']
+                                        usage_dict[current_month_str] = usage_dict.get(current_month_str, 0) + (old_f - new_f)
+                                    df.at[idx, s]['full'] = new_f
+                                    save_data(df)
+                                    
+                                def on_l_open_change(idx=index, s=size, fk=full_key, ok=open_key):
+                                    new_o = st.session_state[ok]
+                                    old_o = df.at[idx, s]['open']
+                                    old_f = df.at[idx, s]['full']
+                                    if new_o > old_o:
+                                        if old_f > 0:
+                                            df.at[idx, s]['full'] = old_f - 1
+                                            df.at[idx, s]['open'] = new_o
+                                            st.session_state[fk] = old_f - 1
+                                            save_data(df)
+                                        else:
+                                            st.session_state[ok] = old_o
+                                            st.toast(f"No full bags of {s} to open!")
+                                    else:
+                                        df.at[idx, s]['open'] = new_o
+                                        save_data(df)
+
+                                st.number_input(
                                     f"{indicator} {size} (Full)",
                                     min_value=0,
                                     value=int(full_qty),
                                     step=1,
-                                    key=f"m_qty_l_full_{row['id']}_{size}_{st.session_state.render_key}"
+                                    key=full_key,
+                                    on_change=on_l_full_change
                                 )
-                                if new_full_qty != full_qty:
-                                    if new_full_qty < full_qty:
-                                        current_month_str = datetime.now().strftime("%Y-%m")
-                                        usage_dict = df.at[index, 'monthly_usage']
-                                        usage_dict[current_month_str] = usage_dict.get(current_month_str, 0) + (full_qty - new_full_qty)
-                                    df.at[index, size]['full'] = new_full_qty
-                                    save_data(df)
-                                    st.session_state.render_key += 1
-                                    st.rerun()
                                 
-                                # Open bags controller
-                                new_open_qty = st.number_input(
+                                st.number_input(
                                     f"{size} (Open)",
                                     min_value=0,
                                     value=int(open_qty),
                                     step=1,
-                                    key=f"m_qty_l_open_{row['id']}_{size}_{st.session_state.render_key}"
+                                    key=open_key,
+                                    on_change=on_l_open_change
                                 )
-                                if new_open_qty != open_qty:
-                                    if new_open_qty > open_qty:
-                                        # They are opening a bag. Subtract from full.
-                                        if full_qty > 0:
-                                            df.at[index, size]['full'] = full_qty - 1
-                                            df.at[index, size]['open'] = new_open_qty
-                                            save_data(df)
-                                            st.session_state.render_key += 1
-                                            st.rerun()
-                                        else:
-                                            # They tried to open a bag but none are full. Reject the change.
-                                            st.toast(f"No full bags of {size} to open!")
-                                            st.session_state.render_key += 1
-                                            st.rerun()
-                                    else:
-                                        # They are just removing/trashing an open bag.
-                                        df.at[index, size]['open'] = new_open_qty
-                                        save_data(df)
-                                        st.session_state.render_key += 1
-                                        st.rerun()
 
     # --- TAB 2: FOIL ---
     with tab_foil:
@@ -692,48 +691,55 @@ if page == "Inventory":
                         
                         with cols[j]:
                             st.markdown('<div class="mobile-grid-marker" style="display:none;"></div>', unsafe_allow_html=True)
-                            new_full_qty = st.number_input(
+                            
+                            full_key = f"m_qty_f_full_{row['id']}_{field}"
+                            open_key = f"m_qty_f_open_{row['id']}_{field}"
+                            
+                            def on_f_full_change(idx=index, fld=field, fk=full_key):
+                                new_f = st.session_state[fk]
+                                old_f = df.at[idx, fld]['full']
+                                if new_f < old_f:
+                                    current_month_str = datetime.now().strftime("%Y-%m")
+                                    usage_dict = df.at[idx, 'monthly_usage']
+                                    usage_dict[current_month_str] = usage_dict.get(current_month_str, 0) + (old_f - new_f)
+                                df.at[idx, fld]['full'] = new_f
+                                save_data(df)
+                                
+                            def on_f_open_change(idx=index, fld=field, fk=full_key, ok=open_key, lbl=label):
+                                new_o = st.session_state[ok]
+                                old_o = df.at[idx, fld]['open']
+                                old_f = df.at[idx, fld]['full']
+                                if new_o > old_o:
+                                    if old_f > 0:
+                                        df.at[idx, fld]['full'] = old_f - 1
+                                        df.at[idx, fld]['open'] = new_o
+                                        st.session_state[fk] = old_f - 1
+                                        save_data(df)
+                                    else:
+                                        st.session_state[ok] = old_o
+                                        st.toast(f"No full bags of {lbl} to open!")
+                                else:
+                                    df.at[idx, fld]['open'] = new_o
+                                    save_data(df)
+
+                            st.number_input(
                                 f"{indicator} {label} (Full)",
                                 min_value=0,
                                 value=int(full_qty),
                                 step=1,
-                                key=f"m_qty_f_full_{row['id']}_{field}_{st.session_state.render_key}"
+                                key=full_key,
+                                on_change=on_f_full_change
                             )
-                            if new_full_qty != full_qty:
-                                if new_full_qty < full_qty:
-                                    current_month_str = datetime.now().strftime("%Y-%m")
-                                    usage_dict = df.at[index, 'monthly_usage']
-                                    usage_dict[current_month_str] = usage_dict.get(current_month_str, 0) + (full_qty - new_full_qty)
-                                df.at[index, field]['full'] = new_full_qty
-                                save_data(df)
-                                st.session_state.render_key += 1
-                                st.rerun()
                                 
                             # Open bags controller
-                            new_open_qty = st.number_input(
+                            st.number_input(
                                 f"{label} (Open)",
                                 min_value=0,
                                 value=int(open_qty),
                                 step=1,
-                                key=f"m_qty_f_open_{row['id']}_{field}_{st.session_state.render_key}"
+                                key=open_key,
+                                on_change=on_f_open_change
                             )
-                            if new_open_qty != open_qty:
-                                if new_open_qty > open_qty:
-                                    if full_qty > 0:
-                                        df.at[index, field]['full'] = full_qty - 1
-                                        df.at[index, field]['open'] = new_open_qty
-                                        save_data(df)
-                                        st.session_state.render_key += 1
-                                        st.rerun()
-                                    else:
-                                        st.toast(f"No full bags of {label} to open!")
-                                        st.session_state.render_key += 1
-                                        st.rerun()
-                                else:
-                                    df.at[index, field]['open'] = new_open_qty
-                                    save_data(df)
-                                    st.session_state.render_key += 1
-                                    st.rerun()
 
 # --- PAGE: ADD MANUALLY ---
 elif page == "Add Manually":
